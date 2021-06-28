@@ -106,56 +106,6 @@ describe('LiveController rendering Tests', () => {
         expect(document.activeElement.name).toEqual('comments');
     });
 
-    it('avoids updating a child component', async () => {
-        const parentTemplate = (data, childData) => {
-            return `
-                <div
-                    data-controller="live"
-                    data-live-url-value="http://localhost/_components/parent"
-                >
-                    Title: ${data.title}
-
-                    <button
-                        data-action="live#$render"
-                    >Parent Re-render</button>
-
-                    ${template(childData)}
-                </div>
-            `
-        }
-
-        const data = { title: 'Parent component' };
-        const childData = { name: 'Ryan' };
-        const { element } = await startStimulus(
-            // render the parent and child component
-            parentTemplate(data, childData),
-            data
-        );
-        // setup the values on the child element
-        element.querySelector('[data-controller="live"]').dataset.liveDataValue = JSON.stringify(childData);
-
-        // child re-render: render with new name & an error class
-        fetchMock.get('http://localhost/_components/my_component?name=Ryan', {
-            html: template({ name: 'Kevin', hasError: true }),
-            data: { name: 'Kevin', hasError: true }
-        });
-
-        // reload the child template
-        getByText(element, 'Reload').click();
-        await waitFor(() => expect(element).toHaveTextContent('Name: Kevin'));
-
-        // reload the parent template
-        fetchMock.get('http://localhost/_components/parent?title=Parent+component', {
-            html: parentTemplate({ title: 'Changed parent' }, { name: 'changed name'}),
-            data: { title: 'Changed parent'}
-        });
-        getByText(element, 'Parent Re-render').click();
-        await waitFor(() => expect(element).toHaveTextContent('Title: Changed parent'));
-
-        // the child component should *not* have updated
-        expect(element).toHaveTextContent('Name: Kevin');
-    });
-
     it('cancels a re-render if the page is navigating away', async () => {
         const data = { name: 'Ryan' };
         const { element, controller } = await startStimulus(
@@ -174,7 +124,7 @@ describe('LiveController rendering Tests', () => {
         // imitate navigating away
         fireEvent(window, createEvent('beforeunload', window));
 
-        // wait for the fetch to fonish
+        // wait for the fetch to finish
         await fetchMock.flush();
 
         // the re-render should not have happened
