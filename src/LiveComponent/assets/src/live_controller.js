@@ -59,6 +59,15 @@ export default class extends Controller {
 
         window.addEventListener('beforeunload', this.markAsWindowUnloaded);
 
+        this.element.addEventListener('live:update-model', (event) => {
+            // ignore events that we dispatched
+            if (event.target === this.element) {
+                return;
+            }
+
+            this._handleChildComponentUpdateModel(event);
+        });
+
         this._dispatchEvent('live:connect');
     }
 
@@ -169,10 +178,10 @@ export default class extends Controller {
             throw new Error(`The update() method could not be called for "${clonedElement.outerHTML}": the element must either have a "data-model" or "name" attribute set to the model name.`);
         }
 
-        this.$updateModel(model, value, element, shouldRender);
+        this.$updateModel(model, value, shouldRender);
     }
 
-    $updateModel(model, value, element, shouldRender = true) {
+    $updateModel(model, value, shouldRender = true) {
         const directives = parseDirectives(model);
         if (directives.length > 1) {
             throw new Error(`The data-model="${model}" format is invalid: it does not support multiple directives (i.e. remove any spaces).`);
@@ -200,6 +209,11 @@ export default class extends Controller {
         if (!doesDeepPropertyExist(this.dataValue, modelName)) {
             console.warn(`Model "${modelName}" is not a valid data-model value`);
         }
+
+        this._dispatchEvent('live:update-model', {
+            model: modelName,
+            value,
+        })
 
         // we do not send old and new data to the server
         // we merge in the new data now
@@ -531,11 +545,11 @@ export default class extends Controller {
                 }
             });
 
-            this.startPoll(directive.action, duration);
+            this._startPoll(directive.action, duration);
         })
     }
 
-    startPoll(actionName, duration) {
+    _startPoll(actionName, duration) {
         let callback;
         if (actionName.charAt(0) === '$') {
             callback = () => {
@@ -560,6 +574,14 @@ export default class extends Controller {
         });
 
         return this.element.dispatchEvent(userEvent);
+    }
+
+    _handleChildComponentUpdateModel(event) {
+        if (!doesDeepPropertyExist(this.dataValue, event.detail.model)) {
+            return;
+        }
+
+        this.$updateModel(event.detail.model, event.detail.value, false);
     }
 }
 

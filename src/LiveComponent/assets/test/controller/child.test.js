@@ -103,4 +103,34 @@ describe('LiveController parent -> child component tests', () => {
         // the child component should *not* have updated
         expect(element).toHaveTextContent('Description in child: i love popcorn');
     });
+
+    it('updates child model and parent model in a deferred way', async () => {
+        const data = { title: 'Parent component', description: 'i love' };
+        const { element, controller } = await startStimulusForParentChild(
+            parentTemplate(data),
+            data,
+            { description: data.description }
+        );
+
+        // verify the child request contains the correct description & re-render
+        fetchMock.get('http://localhost/_components/my_component?description=i+love+turtles', {
+            html: childTemplate({ description: 'i love turtles' }),
+            data: { description: 'i love turtles' }
+        });
+
+        // change the description in the child
+        const inputElement = getByLabelText(element, 'Description:');
+        await userEvent.type(inputElement, ' turtles');
+
+        // wait for the render to complete
+        await waitFor(() => expect(element).toHaveTextContent('Description in child: i love turtles'));
+
+        // the parent should not re-render
+        expect(element).not.toHaveTextContent('Description in parent: i love turtles');
+        // but the value DID update
+        expect(controller.dataValue.description).toEqual('i love turtles');
+    });
+
+    // TODO - what if a child component re-renders and comes down with
+    // a changed set of data? Should that update the parent's data?
 });
