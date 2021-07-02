@@ -351,9 +351,6 @@ export default class extends Controller {
 
         // merge/patch in the new HTML
         this._executeMorphdom(data.html);
-
-        // "data" holds the new, updated data
-        this.dataValue = data.data;
     }
 
     _clearWaitingDebouncedRenders() {
