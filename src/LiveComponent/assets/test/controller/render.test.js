@@ -10,7 +10,7 @@
 'use strict';
 
 import { clearDOM } from '@symfony/stimulus-testing';
-import { initLiveComponent, startStimulus } from '../tools';
+import { initLiveComponent, mockRerender, startStimulus } from '../tools';
 import { createEvent, fireEvent, getByLabelText, getByText, waitFor } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import fetchMock from 'fetch-mock-jest';
@@ -47,13 +47,13 @@ describe('LiveController rendering Tests', () => {
         const data = { name: 'Ryan' };
         const { element, controller } = await startStimulus(template(data));
 
-        fetchMock.get('http://localhost/_components/my_component?name=Ryan', {
-            html: '<div>aloha!</div>',
-            data: { name: 'Kevin' }
+        mockRerender({ name: 'Ryan' }, template, (data) => {
+            // change the data on the server
+            data.name = 'Kevin';
         });
         getByText(element, 'Reload').click();
 
-        await waitFor(() => expect(element).toHaveTextContent('aloha!'));
+        await waitFor(() => expect(element).toHaveTextContent('Name: Kevin'));
         expect(controller.dataValue).toEqual({name: 'Kevin'});
     });
 
