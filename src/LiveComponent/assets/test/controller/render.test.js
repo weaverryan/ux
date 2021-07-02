@@ -10,7 +10,7 @@
 'use strict';
 
 import { clearDOM } from '@symfony/stimulus-testing';
-import { startStimulus } from '../tools';
+import { initLiveComponent, startStimulus } from '../tools';
 import { createEvent, fireEvent, getByLabelText, getByText, waitFor } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import fetchMock from 'fetch-mock-jest';
@@ -18,8 +18,7 @@ import fetchMock from 'fetch-mock-jest';
 describe('LiveController rendering Tests', () => {
     const template = (data, includeLoading = false) => `
         <div
-            data-controller="live"
-            data-live-url-value="http://localhost/_components/my_component"
+            ${initLiveComponent('/_components/my_component', data)}
         >
             <!-- form field not mapped with data-model -->
             <label>
@@ -46,10 +45,7 @@ describe('LiveController rendering Tests', () => {
 
     it('renders from the AJAX endpoint & updates data', async () => {
         const data = { name: 'Ryan' };
-        const { element, controller } = await startStimulus(
-            template(data),
-            data
-        );
+        const { element, controller } = await startStimulus(template(data));
 
         fetchMock.get('http://localhost/_components/my_component?name=Ryan', {
             html: '<div>aloha!</div>',
@@ -63,10 +59,7 @@ describe('LiveController rendering Tests', () => {
 
     it('conserves values of fields modified after a render request', async () => {
         const data = { name: 'Ryan' };
-        const { element } = await startStimulus(
-            template(data),
-            data
-        );
+        const { element } = await startStimulus(template(data));
 
         fetchMock.get('http://localhost/_components/my_component?name=Ryan', {
             html: template({ name: 'Kevin' }),
@@ -88,8 +81,7 @@ describe('LiveController rendering Tests', () => {
             // "true" gives the comment input a loading behavior
             // this could make the input.isEqualNode() be false when comparing
             // that's exactly what we want test for
-            template(data, true),
-            data
+            template(data, true)
         );
 
         fetchMock.get('http://localhost/_components/my_component?name=Ryan', {
@@ -108,12 +100,9 @@ describe('LiveController rendering Tests', () => {
 
     it('cancels a re-render if the page is navigating away', async () => {
         const data = { name: 'Ryan' };
-        const { element, controller } = await startStimulus(
-            template(data),
-            data
-        );
+        const { element } = await startStimulus(template(data));
 
-        fetchMock.get('http://localhost/_components/my_component?name=Ryan', {
+        fetchMock.get('end:?name=Ryan', {
             html: '<div>aloha!</div>',
             data: { name: 'Kevin' }
         }, {

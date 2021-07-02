@@ -11,7 +11,7 @@ const TestData = class {
 
 let application;
 
-const startStimulus = async (html, data, container = null) => {
+const startStimulus = async (html, container = null) => {
     // start the Stimulus app just once per test suite
     if (!application) {
         application = Application.start();
@@ -26,8 +26,6 @@ const startStimulus = async (html, data, container = null) => {
     document.body.appendChild(container);
 
     const element = getControllerElement(container);
-    element.dataset.liveDataValue = JSON.stringify(data);
-
     await waitFor(() => application.getControllerForElementAndIdentifier(element, 'live'));
     const controller = application.getControllerForElementAndIdentifier(element, 'live');
 
@@ -38,4 +36,20 @@ const getControllerElement = (container) => {
     return container.querySelector('[data-controller="live"]');
 };
 
-export { startStimulus, getControllerElement };
+const dataToJsonAttribute = (data) => {
+    const container = document.createElement('div');
+    container.dataset.foo = JSON.stringify(data);
+
+    // returns the now-escaped string, ready to be used in an HTML attribute
+    return container.outerHTML.match(/data\-foo="(.+)\"/)[1]
+}
+
+const initLiveComponent = (url, data) => {
+    return `
+        data-controller="live"
+        data-live-url-value="http://localhost${url}"
+        data-live-data-value="${dataToJsonAttribute(data)}"
+    `;
+}
+
+export { startStimulus, getControllerElement, initLiveComponent };
