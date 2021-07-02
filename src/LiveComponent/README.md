@@ -361,6 +361,9 @@ code works identically to the previous example:
 </div>
 ```
 
+If an element has *both* `data-model` and `name` attributes, the
+`data-model` attribute takes precedence.
+
 ## Loading States
 
 Often, you'll want to show (or hide) an element while a component is
