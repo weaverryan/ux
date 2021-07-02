@@ -178,10 +178,27 @@ export default class extends Controller {
             throw new Error(`The update() method could not be called for "${clonedElement.outerHTML}": the element must either have a "data-model" or "name" attribute set to the model name.`);
         }
 
-        this.$updateModel(model, value, shouldRender);
+        this.$updateModel(model, value, shouldRender, element.hasAttribute('name') ? element.getAttribute('name') : null);
     }
 
-    $updateModel(model, value, shouldRender = true) {
+    /**
+     * Update a model value.
+     *
+     * The extraModelName should be set to the "name" attribute of an element
+     * if it has one. This is only important in a parent/child component,
+     * where, in the child, you might be updating a "foo" model, but you
+     * also want this update to "sync" to the parent component's "bar" model.
+     * Typically, setup on a field like this:
+     *
+     *      <input data-model="foo" name="bar">
+     *
+     * @param {string} model The model update, which could include modifiers
+     * @param {any} value The new value
+     * @param {boolean} shouldRender Whether a re-render should be triggered
+     * @param {string|null} extraModelName Another model name that this might go by in a parent component.
+     * @param {Object} options Options include: {bool} dispatch
+     */
+    $updateModel(model, value, shouldRender = true, extraModelName = null, options = {}) {
         const directives = parseDirectives(model);
         if (directives.length > 1) {
             throw new Error(`The data-model="${model}" format is invalid: it does not support multiple directives (i.e. remove any spaces).`);
@@ -194,6 +211,7 @@ export default class extends Controller {
         }
 
         const modelName = normalizeModelName(directive.action);
+        const normalizedExtraModelName = extraModelName ? normalizeModelName(extraModelName) : null;
 
         // if there is a "validatedFields" data, it means this component wants
         // to track which fields have been / should be validated.
@@ -206,14 +224,13 @@ export default class extends Controller {
             this.dataValue = setDeepData(this.dataValue, 'validatedFields', validatedFields);
         }
 
-        if (!doesDeepPropertyExist(this.dataValue, modelName)) {
-            console.warn(`Model "${modelName}" is not a valid data-model value`);
+        if (options.dispatch !== false) {
+            this._dispatchEvent('live:update-model', {
+                modelName,
+                extraModelName: normalizedExtraModelName,
+                value,
+            });
         }
-
-        this._dispatchEvent('live:update-model', {
-            model: modelName,
-            value,
-        })
 
         // we do not send old and new data to the server
         // we merge in the new data now
@@ -577,11 +594,27 @@ export default class extends Controller {
     }
 
     _handleChildComponentUpdateModel(event) {
-        if (!doesDeepPropertyExist(this.dataValue, event.detail.model)) {
+        let matchingModelName = null;
+
+        if (doesDeepPropertyExist(this.dataValue, event.detail.modelName)) {
+            matchingModelName = event.detail.modelName;
+        } else if (doesDeepPropertyExist(this.dataValue, event.detail.extraModelName)) {
+            matchingModelName = event.detail.extraModelName;
+        }
+
+        if (matchingModelName === null) {
             return;
         }
 
-        this.$updateModel(event.detail.model, event.detail.value, false);
+        this.$updateModel(
+            matchingModelName,
+            event.detail.value,
+            false,
+            null,
+            {
+                dispatch: false
+            }
+        );
     }
 }
 
