@@ -138,6 +138,31 @@ describe('LiveController data-model Tests', () => {
         fetchMock.done();
     });
 
+    it('uses data-model when both name and data-model is present', async () => {
+        const data = { name: 'Ryan' };
+        const { element, controller } = await startStimulus(
+            template(data),
+            data
+        );
+
+        // give element data-model="name" and name="first_name"
+        const inputElement = getByLabelText(element, 'Name:');
+        inputElement.setAttribute('name', 'first_name');
+
+        // ?name should be what's sent to the server
+        fetchMock.getOnce('http://localhost/?name=Ryan+WEAVER', {
+            html: template({ name: 'Ryan Weaver' }),
+            data: { name: 'Ryan Weaver' }
+        });
+
+        await userEvent.type(inputElement, ' WEAVER');
+
+        await waitFor(() => expect(inputElement).toHaveValue('Ryan Weaver'));
+        expect(controller.dataValue).toEqual({name: 'Ryan Weaver'});
+
+        fetchMock.done();
+    });
+
     it('standardizes user[firstName] style models into post.name', async () => {
         const deeperModelTemplate = (data) => `
             <div

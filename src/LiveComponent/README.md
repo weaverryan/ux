@@ -1135,3 +1135,100 @@ You can also trigger a specific "action" instead of a normal re-render:
     #}
 >
 ```
+
+## Embedded Components
+
+It's totally possible to embed one live component into another. But when
+you do, there are a few things to know:
+
+* When the parent component is re-rendered, the child component is *not*
+  automatically re-rendered. Basically, each component operates 100%
+  independently of each other.
+
+For example,
+suppose you have an `EditPostComponent`:
+
+```php
+<?php
+
+namespace App\Twig\Components;
+
+use App\Entity\Post;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
+use Symfony\UX\LiveComponent\Attribute\LiveAction;
+use Symfony\UX\LiveComponent\Attribute\LiveProp;
+
+#[AsLiveComponent('edit_post')]
+final class EditPostComponent extends AbstractController
+{
+    #[LiveProp(exposed: ['title', 'content'])]
+    public Post $post;
+
+    #[LiveAction]
+    public function save(EntityManagerInterface $entityManager)
+    {
+        $entityManager->flush();
+
+        return $this->redirectToRoute('some_route');
+    }
+}
+```
+
+And a `MarkdownTextareaComponent`:
+
+```php
+<?php
+
+namespace App\Twig\Components;
+
+use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
+use Symfony\UX\LiveComponent\Attribute\LiveProp;
+
+#[AsLiveComponent('markdown_textarea')]
+final class MarkdownTextareaComponent
+{
+    #[LiveProp]
+    public string $label;
+
+    #[LiveProp]
+    public string $name;
+
+    #[LiveProp(writable: true)]
+    public string $value = '';
+}
+```
+
+In the `EditPostComponent` template, you render the `MarkdownTextareaComponent`:
+
+```twig
+{# templates/components/edit_post.html.twig #}
+<div {{ init_live_component(this) }}>
+    <input
+        type="text"
+        name="post[title]"
+        data-action="live#updateDefer"
+        value="{{ this.post.title }}"
+    >
+
+    {{ component('markdown_textarea', {
+        name: 'post[content]',
+        label: 'Content',
+        value: this.post.content
+    }) }}
+
+    <button
+        data-action="live#action"
+        data-action-name="save"
+    >Save</button>
+</div>
+```
+
+The `MarkdownTextareaComponent`
+
+When you do
+this, there's nothing special to know: both components render independently.
+If you're using [Live Components](https://github.com/symfony/ux-live-component),
+then there *are* some guidelines related to how the re-rendering of parent
+and child components works. Read [Live Embedded Components](https://github.com/symfony/ux-live-component#embedded-components).
