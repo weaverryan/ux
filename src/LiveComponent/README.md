@@ -1234,6 +1234,10 @@ component (because `data-model` takes precedence over `name`). But if
 any parent components have a `markdown_value` model _or_ a `post.content`
 model (normalized from `post[content`]`), their model will also be updated.
 
+**NOTE**: If you _change_ a `LiveProp` ofa child component on the server
+(e.g. during re-rendering or via an action), that change will _not_ be
+reflected on any parent components that share that model.
+
 ### Full Embedded Component Example
 
 Let's look at a full, complex example of an embedded component. Suppose
