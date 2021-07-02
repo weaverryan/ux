@@ -361,7 +361,7 @@ code works identically to the previous example:
 </div>
 ```
 
-If an element has *both* `data-model` and `name` attributes, the
+If an element has _both_ `data-model` and `name` attributes, the
 `data-model` attribute takes precedence.
 
 ## Loading States
@@ -1151,8 +1151,8 @@ Here are a few helpful things to know:
 
 ### Each component re-renders independent of one another
 
-If a parent component re-renders, the child component will *not* (most
-of the time) be updated,  even though it lives inside the parent. Each
+If a parent component re-renders, the child component will _not_ (most
+of the time) be updated, even though it lives inside the parent. Each
 component is its own, isolated universe.
 
 But... this is not always what you want. For example, suppose a
@@ -1171,9 +1171,9 @@ that it passes into the child:
 ```
 
 In this situation, when the parent component re-renders after clicking
-"Save", you *do* want the updated child  component (with the validation
-error) to be rendered. And, this *will* happen because the system detects
-that the parent component has *changed* how it's rendering the child.
+"Save", you _do_ want the updated child component (with the validation
+error) to be rendered. And, this _will_ happen because the system detects
+that the parent component has _changed_ how it's rendering the child.
 
 This may not always be perfect, and if your child component has its own
 `LiveProp` that has changed since it was first rendered, that value will
@@ -1185,11 +1185,11 @@ Again, each component is its own, isolated universe! For example, suppose
 your child component has:
 
 ```html
-<button data-action="live#action" data-action-name="save">
+<button data-action="live#action" data-action-name="save"></button>
 ```
 
 When the user clicks that button, it will attempt to call the `save` action
-in the *child* component only, even if the `save` action actually only
+in the _child_ component only, even if the `save` action actually only
 exists in the parent. The same is true for `data-model`, though there is
 some special handling for this case (see next point).
 
@@ -1201,23 +1201,23 @@ Suppose a child component has a:
 <textarea data-model="markdown_value" data-action="live#update">
 ```
 
-When the user changes this field, this will *only* update the `markdown_value`
-field in the *child* component... because (yup, we're saying it again):
+When the user changes this field, this will _only_ update the `markdown_value`
+field in the _child_ component... because (yup, we're saying it again):
 each component is its own, isolated universe.
 
 However, sometimes this isn't what you want! Sometimes, in addition
-to updating the child component's model, you *also* want to update a
-model on the *parent* component.
+to updating the child component's model, you _also_ want to update a
+model on the _parent_ component.
 
 To help with this, whenever a model updates, a `live:update-model`
 is dispatched. All components automatically listen to this event. This
 means that, when the `markdown_value` model is updated in the child
-component, *if* the parent component *also* has a model called `markdown_value`
-it will *also* be updated. This is done as a "deferred" update
+component, _if_ the parent component _also_ has a model called `markdown_value`
+it will _also_ be updated. This is done as a "deferred" update
 (i.e. [updateDefer()](#deferring-a-re-render-until-later)).
 
 If the model name in your child component (e.g. `markdown_value`) is
-*different* than the model name in your parent component (e.g. `post.content`),
+_different_ than the model name in your parent component (e.g. `post.content`),
 you can make sure both are set by leveraging both the `data-model`
 and `name` attributes:
 
@@ -1231,7 +1231,7 @@ and `name` attributes:
 
 In this situation, the `markdown_value` model will be updated on the child
 component (because `data-model` takes precedence over `name`). But if
-any parent components have a `markdown_value` model *or* a `post.content`
+any parent components have a `markdown_value` model _or_ a `post.content`
 model (normalized from `post[content`]`), their model will also be updated.
 
 ### Full Embedded Component Example
@@ -1331,7 +1331,7 @@ In the `EditPostComponent` template, you render the `MarkdownTextareaComponent`:
 ```
 
 Notice that `MarkdownTextareaComponent` allows a dynamic `name` attribute to
-be passed in.  This makes that component re-usable in any form. But it
+be passed in. This makes that component re-usable in any form. But it
 also makes sure that when the `textarea` changes, both the `value` model
-in `MarkdownTextareaComponent` *and* the `post.content` model in
+in `MarkdownTextareaComponent` _and_ the `post.content` model in
 `EditPostcomponent` will be updated.
