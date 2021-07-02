@@ -1,6 +1,8 @@
 import { Application } from 'stimulus';
 import LiveController from '../src/live_controller';
 import { waitFor } from '@testing-library/dom';
+import fetchMock from 'fetch-mock-jest';
+import { buildSearchParams } from '../src/http_data_helper';
 
 const TestData = class {
     constructor(controller, element) {
@@ -52,4 +54,28 @@ const initLiveComponent = (url, data) => {
     `;
 }
 
-export { startStimulus, getControllerElement, initLiveComponent };
+/**
+ * Allows you to easily mock a re-render Ajax request.
+ *
+ * The renderCallback() is called and passed the "sentData" as the only
+ * argument. If you want to change the "sentData" slightly before the
+ * template is rendered, pass the changeDataCallback and modify it there.
+ *
+ * @param {Object} sentData The *expected* data that should be sent to the server
+ * @param {function} renderCallback Function that will render the component
+ * @param {function} changeDataCallback Specify if you want to change the data before rendering
+ */
+const mockRerender = (sentData, renderCallback, changeDataCallback = (data) => {}) => {
+    const params = new URLSearchParams('');
+
+    const url = `end:?${buildSearchParams(params, sentData).toString()}`;
+
+    changeDataCallback(sentData);
+
+    fetchMock.mock(url, {
+        html: renderCallback(sentData),
+        data: sentData
+    });
+}
+
+export { startStimulus, getControllerElement, initLiveComponent, mockRerender };

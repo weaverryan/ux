@@ -10,28 +10,33 @@
 'use strict';
 
 import { clearDOM } from '@symfony/stimulus-testing';
-import { startStimulus } from '../tools';
-import { createEvent, fireEvent, getByLabelText, getByText, waitFor } from '@testing-library/dom';
+import { initLiveComponent, mockRerender, startStimulus } from '../tools';
+import { getByLabelText, getByText, waitFor } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import fetchMock from 'fetch-mock-jest';
 
 describe('LiveController parent -> child component tests', () => {
     const parentTemplate = (data) => {
+        const errors = data.errors || { post: {} };
+
         return `
             <div
-                data-controller="live"
-                data-live-url-value="http://localhost/_components/parent"
+                ${initLiveComponent('/_components/parent', data)}
             >
                 <span>Title: ${data.post.title}</span>
                 <span>Description in Parent: ${data.post.content}</span>
 
-                <input
-                    type="text"
-                    name="post[title]"
-                    value="${data.post.title}"
-                >
+                <label>
+                    Title:
+                    <input
+                        type="text"
+                        name="post[title]"
+                        value="${data.post.title}"
+                        data-action="live#update"
+                    >
+                </label>
 
-                ${childTemplate({ value: data.post.content })}
+                ${childTemplate({ value: data.post.content, error: errors.post.content })}
 
                 <button
                     data-action="live#$render"
@@ -42,21 +47,22 @@ describe('LiveController parent -> child component tests', () => {
 
     const childTemplate = (data) => `
         <div
-            data-controller="live"
-            data-live-url-value="http://localhost/_components/child"
+            ${initLiveComponent('/_components/child', data)}
         >
-            <!-- form field not mapped with data-model -->
             <label>
                 Content:
-                <input
-                    value="${data.value}"
+                <textarea
                     data-model="value"
                     name="post[content]"
                     data-action="live#update"
-                >
+                    rows="${data.rows ? data.rows : '3'}"
+                >${data.value}</textarea>
             </label>
 
             <div>Value in child: ${data.value}</div>
+            <div>Error in child: ${data.error ? data.error : 'none'}</div>
+            {# Rows represents a writable prop that's private to the child component #}
+            <div>Rows in child: ${data.rows ? data.rows : 'not set'}</div>
 
             <button
                 data-action="live#$render"
@@ -64,60 +70,43 @@ describe('LiveController parent -> child component tests', () => {
         </div>
     `;
 
-    const startStimulusForParentChild = async (html, data, childData) => {
-        const testData = await startStimulus(
-            parentTemplate(data),
-            data
-        );
-
-        // setup the values on the child element
-        testData.element.querySelector('[data-controller="live"]').dataset.liveDataValue = JSON.stringify(childData);
-
-        return testData;
-    }
-
     afterEach(() => {
         clearDOM();
         fetchMock.reset();
     });
 
     it('renders parent component without affecting child component', async () => {
-        const data = { post: { title: 'Parent component', content: 'i love components' } };
-        const { element } = await startStimulusForParentChild(
-            parentTemplate(data),
-            data,
-            { value: data.post.content }
-        );
+        const data = { post: { title: 'Parent component', content: 'i love' } };
+        const { element } = await startStimulus(parentTemplate(data));
 
-        // on child re-render, use a new content
-        fetchMock.get('http://localhost/_components/child?value=i+love+components', {
-            html: childTemplate({ value: 'i love popcorn' }),
-            data: { value: 'i love popcorn' }
+        // on child re-render, expect the new value, change rows on the server
+        mockRerender({ value: 'i love popcorn' }, childTemplate, (data) => {
+            // change the "rows" data on the "server"
+            data.rows = 5;
         });
+        await userEvent.type(getByLabelText(element, 'Content:'), ' popcorn');
 
-        // reload the child template
-        getByText(element, 'Child Re-render').click();
         await waitFor(() => expect(element).toHaveTextContent('Value in child: i love popcorn'));
+        expect(element).toHaveTextContent('Rows in child: 5');
 
-        // on parent re-render, render the child template differently
-        fetchMock.get('begin:http://localhost/_components/parent', {
-            html: parentTemplate({ post: { title: 'Changed title', content: 'changed content' } }),
-            data: { post: { title: 'Changed title', content: 'changed content' } }
-        });
-        getByText(element, 'Parent Re-render').click();
-        await waitFor(() => expect(element).toHaveTextContent('Title: Changed title'));
+        // when the parent re-renders, expect the changed title AND content (from child)
+        // but, importantly, the only "changed" data that will be passed into
+        // the child component will be "content", which will match what the
+        // child already has. This will NOT trigger a re-render.
+        mockRerender(
+            { post: { title: 'Parent component changed', content: 'i love popcorn' } },
+            parentTemplate
+        )
+        await userEvent.type(getByLabelText(element, 'Title:'), ' changed');
+        await waitFor(() => expect(element).toHaveTextContent('Title: Parent component changed'));
 
         // the child component should *not* have updated
-        expect(element).toHaveTextContent('Value in child: i love popcorn');
+        expect(element).toHaveTextContent('Rows in child: 5');
     });
 
     it('updates child model and parent model in a deferred way', async () => {
         const data = { post: { title: 'Parent component', content: 'i love' } };
-        const { element, controller } = await startStimulusForParentChild(
-            parentTemplate(data),
-            data,
-            { value: data.post.content }
-        );
+        const { element, controller } = await startStimulus(parentTemplate(data));
 
         // verify the child request contains the correct description & re-render
         fetchMock.get('http://localhost/_components/child?value=i+love+turtles', {
@@ -137,6 +126,43 @@ describe('LiveController parent -> child component tests', () => {
         // but the value DID update on the parent component
         // this is because the name="post[content]" in the child matches the parent model
         expect(controller.dataValue.post.content).toEqual('i love turtles');
+    });
+
+    it('updates re-renders a child component if data has changed from initial', async () => {
+        const data = { post: { title: 'Parent component', content: 'initial content' } };
+        const { element } = await startStimulus(parentTemplate(data));
+
+        // allow the child to re-render, but change the "rows" value
+        const inputElement = getByLabelText(element, 'Content:');
+        await userEvent.clear(inputElement);
+        await userEvent.type(inputElement, 'changed content');
+        fetchMock.get('http://localhost/_components/child?value=changed+content', {
+            html: childTemplate({ value: 'changed content', rows: 5 }),
+            data: { value: 'changed content', rows: 5 }
+        });
+
+        // reload, which will give us rows=5
+        getByText(element, 'Child Re-render').click();
+        await waitFor(() => expect(element).toHaveTextContent('Rows in child: 5'));
+
+        // simulate an action in the parent component where "errors" changes
+        const newData = {...data};
+        newData.post.title = 'Changed title';
+        newData.post.content = 'changed content';
+        newData.errors = { post: { content: 'the content is not interesting enough' }};
+        fetchMock.get('http://localhost/_components/parent?post%5Btitle%5D=Parent+component&post%5Bcontent%5D=changed+content', {
+            html: parentTemplate(newData),
+            data: newData
+        });
+
+        getByText(element, 'Parent Re-render').click();
+        await waitFor(() => expect(element).toHaveTextContent('Title: Changed title'));
+        // the child, of course, still has the "changed content" value
+        expect(element).toHaveTextContent('Value in child: changed content');
+        // but because some child data *changed* from its original value, the child DOES re-render
+        expect(element).toHaveTextContent('Error in child: the content is not interesting enough');
+        // however, this means that the updated "rows" data on the child is lost
+        expect(element).toHaveTextContent('Rows in child: not set');
     });
 
     // TODO - what if a child component re-renders and comes down with

@@ -5,6 +5,7 @@ import { combineSpacedArray } from './string_utils';
 import { buildFormData, buildSearchParams } from './http_data_helper';
 import { setDeepData, doesDeepPropertyExist, normalizeModelName } from './set_deep_data';
 import './polyfills';
+import { haveRenderedValuesChanged } from './have_rendered_values_changed';
 
 const DEFAULT_DEBOUNCE = '150';
 
@@ -44,8 +45,12 @@ export default class extends Controller {
 
     isWindowUnloaded = false;
 
+    originalDataJSON;
+
     initialize() {
         this.markAsWindowUnloaded = this.markAsWindowUnloaded.bind(this);
+        this.originalDataJSON = JSON.stringify(this.dataValue);
+        this._exposeOriginalData();
     }
 
     connect() {
@@ -530,6 +535,7 @@ export default class extends Controller {
                 if (fromEl.hasAttribute('data-controller')
                     && fromEl.getAttribute('data-controller').split(' ').indexOf('live') !== -1
                     && fromEl !== this.element
+                    && !this._shouldChildLiveElementUpdate(fromEl, toEl)
                 ) {
                     return false;
                 }
@@ -537,6 +543,8 @@ export default class extends Controller {
                 return true;
             }
         });
+        // restore the data-original-data attribute
+        this._exposeOriginalData();
     }
 
     markAsWindowUnloaded = () => {
@@ -615,6 +623,31 @@ export default class extends Controller {
                 dispatch: false
             }
         );
+    }
+
+    /**
+     * Determines of a child live element should be re-rendered.
+     *
+     * This is called when this element re-renders and detects that
+     * a child element is inside. Normally, in that case, we do not
+     * re-render the child element. However, if we detect that the
+     * "data" on the child element has changed from its initial data,
+     * then this will trigger a re-render.
+     *
+     * @param {Element} fromEl
+     * @param {Element} toEl
+     * @return {boolean}
+     */
+    _shouldChildLiveElementUpdate(fromEl, toEl) {
+        return haveRenderedValuesChanged(
+            fromEl.dataset.originalData,
+            fromEl.dataset.liveDataValue,
+            toEl.dataset.liveDataValue
+        );
+    }
+
+    _exposeOriginalData() {
+        this.element.dataset.originalData = this.originalDataJSON;
     }
 }
 

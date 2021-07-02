@@ -1151,9 +1151,33 @@ Here are a few helpful things to know:
 
 ### Each component re-renders independent of one another
 
-If a parent component re-renders, the child component will *not* be updated,
-even though it lives inside the parent. Each component is its own,
-isolated universe.
+If a parent component re-renders, the child component will *not* (most
+of the time) be updated,  even though it lives inside the parent. Each
+component is its own, isolated universe.
+
+But... this is not always what you want. For example, suppose a
+parent component holds a form and a child component holds one field.
+When you click a "Save" button on the parent component, it validates
+the form and re-renders with errors - including a new `error` value
+that it passes into the child:
+
+```twig
+{# templates/components/post_form.html.twig #}
+
+{{ component('textarea_field', {
+    value: this.content,
+    error: this.getError('content')
+}) }}
+```
+
+In this situation, when the parent component re-renders after clicking
+"Save", you *do* want the updated child  component (with the validation
+error) to be rendered. And, this *will* happen because the system detects
+that the parent component has *changed* how it's rendering the child.
+
+This may not always be perfect, and if your child component has its own
+`LiveProp` that has changed since it was first rendered, that value will
+be lost when the parent component causes the child to re-render.
 
 ### Actions, methods and model updates in a child do not affect the parent
 
