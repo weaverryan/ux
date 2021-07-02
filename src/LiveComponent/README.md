@@ -1141,15 +1141,79 @@ You can also trigger a specific "action" instead of a normal re-render:
 
 ## Embedded Components
 
-It's totally possible to embed one live component into another. But when
-you do, there are a few things to know:
+Can you embed one live component inside another one? Absolutely! As a rule
+of thumb, **each component exists in its own, isolated universe**. This
+means that embedding one component inside another might be really simple...
+or a bit more complex if your components share "model" data or are
+"connected" in other ways.
 
-* When the parent component is re-rendered, the child component is *not*
-  automatically re-rendered. Basically, each component operates 100%
-  independently of each other.
+Here are a few helpful things to know:
 
-For example,
-suppose you have an `EditPostComponent`:
+### Each component re-renders independent of one another
+
+If a parent component re-renders, the child component will *not* be updated,
+even though it lives inside the parent. Each component is its own,
+isolated universe.
+
+### Actions, methods and model updates in a child do not affect the parent
+
+Again, each component is its own, isolated universe! For example, suppose
+your child component has:
+
+```html
+<button data-action="live#action" data-action-name="save">
+```
+
+When the user clicks that button, it will attempt to call the `save` action
+in the *child* component only, even if the `save` action actually only
+exists in the parent. The same is true for `data-model`, though there is
+some special handling for this case (see next point).
+
+### If a child model updates, it will attempt to update the parent model
+
+Suppose a child component has a:
+
+```html
+<textarea data-model="markdown_value" data-action="live#update">
+```
+
+When the user changes this field, this will *only* update the `markdown_value`
+field in the *child* component... because (yup, we're saying it again):
+each component is its own, isolated universe.
+
+However, sometimes this isn't what you want! Sometimes, in addition
+to updating the child component's model, you *also* want to update a
+model on the *parent* component.
+
+To help with this, whenever a model updates, a `live:update-model`
+is dispatched. All components automatically listen to this event. This
+means that, when the `markdown_value` model is updated in the child
+component, *if* the parent component *also* has a model called `markdown_value`
+it will *also* be updated. This is done as a "deferred" update
+(i.e. [updateDefer()](#deferring-a-re-render-until-later)).
+
+If the model name in your child component (e.g. `markdown_value`) is
+*different* than the model name in your parent component (e.g. `post.content`),
+you can make sure both are set by leveraging both the `data-model`
+and `name` attributes:
+
+```twig
+<textarea
+    data-model="markdown_value"
+    name="post[content]"
+    data-action="live#update"
+>
+```
+
+In this situation, the `markdown_value` model will be updated on the child
+component (because `data-model` takes precedence over `name`). But if
+any parent components have a `markdown_value` model *or* a `post.content`
+model (normalized from `post[content`]`), their model will also be updated.
+
+### Full Embedded Component Example
+
+Let's look at a full, complex example of an embedded component. Suppose
+you have an `EditPostComponent`:
 
 ```php
 <?php
@@ -1211,7 +1275,7 @@ In the `EditPostComponent` template, you render the `MarkdownTextareaComponent`:
     <input
         type="text"
         name="post[title]"
-        data-action="live#updateDefer"
+        data-action="live#update"
         value="{{ this.post.title }}"
     >
 
@@ -1228,10 +1292,22 @@ In the `EditPostComponent` template, you render the `MarkdownTextareaComponent`:
 </div>
 ```
 
-The `MarkdownTextareaComponent`
+```twig
+<div {{ init_live_component(this) }} class="mb-3">
+    <textarea
+        name="{{ this.name }}"
+        data-model="value"
+        data-action="live#update"
+    >{{ this.value }}</textarea>
 
-When you do
-this, there's nothing special to know: both components render independently.
-If you're using [Live Components](https://github.com/symfony/ux-live-component),
-then there *are* some guidelines related to how the re-rendering of parent
-and child components works. Read [Live Embedded Components](https://github.com/symfony/ux-live-component#embedded-components).
+    <div class="markdown-preview">
+        {{ this.value|markdown_to_html }}
+    </div>
+</div>
+```
+
+Notice that `MarkdownTextareaComponent` allows a dynamic `name` attribute to
+be passed in.  This makes that component re-usable in any form. But it
+also makes sure that when the `textarea` changes, both the `value` model
+in `MarkdownTextareaComponent` *and* the `post.content` model in
+`EditPostcomponent` will be updated.
