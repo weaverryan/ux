@@ -2,6 +2,10 @@
 
 ## NEXT
 
+-   Support for `stimulus` version 2 was removed and support for `@hotwired/stimulus`
+    version 3 was added. See the [@symfony/stimulus-bridge CHANGELOG](https://github.com/symfony/stimulus-bridge/blob/main/CHANGELOG.md#300)
+    for more details.
+
 -   Require live components have a default action (`__invoke()` by default) to enable
     controller annotations/attributes (ie `@Security/@Cache`). Added `DefaultActionTrait`
     helper.
