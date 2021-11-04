@@ -2,6 +2,9 @@ name: Symfony UX
 
 on: [push, pull_request]
 
+env:
+    DEFAULT_PHP_VERSION: '8.0'
+
 jobs:
     coding-style-php:
         runs-on: ubuntu-latest
@@ -9,7 +12,7 @@ jobs:
             - uses: actions/checkout@master
             - uses: shivammathur/setup-php@v2
               with:
-                  php-version: '7.4'
+                  php-version: ${{ env.DEFAULT_PHP_VERSION }}
             - name: php-cs-fixer
               run: |
                   wget https://github.com/FriendsOfPHP/PHP-CS-Fixer/releases/download/v2.18.2/php-cs-fixer.phar -q
@@ -29,8 +32,11 @@ jobs:
             matrix: ${{ steps.set-matrix.outputs.matrix }}
         steps:
             - uses: actions/checkout@master
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ env.DEFAULT_PHP_VERSION }}
             -   id: set-matrix
-                run: echo "::set-output name=matrix::$(.github/get-php-matrix.php)"
+                run: echo "::set-output name=matrix::$(php .github/get-php-matrix.php)"
 
     test-php-lowest-deps:
         needs: provide_php_matrix_output
