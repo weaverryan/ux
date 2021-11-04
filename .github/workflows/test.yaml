@@ -39,6 +39,7 @@ jobs:
                 run: echo "::set-output name=matrix::$(php .github/get-php-matrix.php)"
 
     test-php-lowest-deps:
+        name: "${{ matrix.name }} on ${{ matrix.php_version }} lowest"
         needs: provide_php_matrix_output
         runs-on: ubuntu-latest
         strategy:
@@ -48,11 +49,14 @@ jobs:
             - uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php_version }}
-            - name: ${{ matrix.name }}
+            - name: Build Cross Packages
               run: |
                   php .github/build-packages.php
+            - name: Download Dependencies
                   cd ${{ matrix.path }}
                   composer update --prefer-lowest --prefer-dist --no-interaction --no-ansi --no-progress
+            - name: Run tests
+                  cd ${{ matrix.path }}
                   php vendor/bin/simple-phpunit
 
     tests-js:
