@@ -23,90 +23,29 @@ jobs:
             - run: yarn check-lint
             - run: yarn check-format
 
-    tests-php-low-deps:
+    provide_php_matrix_output:
         runs-on: ubuntu-latest
+        outputs:
+            matrix: ${{ steps.set-matrix.outputs.matrix }}
         steps:
-            - uses: actions/checkout@master
-            - uses: shivammathur/setup-php@v2
-              with:
-                  php-version: '7.2'
-            - name: Chartjs
-              run: |
-                  cd src/Chartjs
-                  composer update --prefer-lowest --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
-            - name: Cropperjs
-              run: |
-                  cd src/Cropperjs
-                  composer update --prefer-lowest --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
-            - name: Dropzone
-              run: |
-                  cd src/Dropzone
-                  composer update --prefer-lowest --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
-            - name: LazyImage
-              run: |
-                  cd src/LazyImage
-                  composer update --prefer-lowest --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
+            -   id: set-matrix
+                run: echo "::set-output name=matrix::$(.github/get-php-matrix.php)"
 
-    tests-php8-low-deps:
+    test-php-lowest-deps:
+        needs: provide_php_matrix_output
         runs-on: ubuntu-latest
+        strategy:
+            matrix: ${{fromJson(needs.provide_php_matrix_output.outputs.matrix)}}
         steps:
             - uses: actions/checkout@master
             - uses: shivammathur/setup-php@v2
               with:
-                  php-version: '8.0'
-            - name: TwigComponent
+                  php-version: ${{ matrix.php_version }}
+            - name: ${{ matrix.name }}
               run: |
-                  cd src/TwigComponent
+                  php .github/build-packages.php
+                  cd ${{ matrix.path }}
                   composer update --prefer-lowest --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
-            - name: LiveComponent
-              run: |
-                  cd src/LiveComponent
-                  php ../../.github/build-packages.php
-                  composer update --prefer-lowest --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
-
-    tests-php-high-deps:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@master
-            - uses: shivammathur/setup-php@v2
-              with:
-                  php-version: '8.0'
-            - name: Chartjs
-              run: |
-                  cd src/Chartjs
-                  composer update --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
-            - name: Cropperjs
-              run: |
-                  cd src/Cropperjs
-                  composer update --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
-            - name: Dropzone
-              run: |
-                  cd src/Dropzone
-                  composer update --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
-            - name: LazyImage
-              run: |
-                  cd src/LazyImage
-                  composer update --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
-            - name: TwigComponent
-              run: |
-                  cd src/TwigComponent
-                  composer update --prefer-dist --no-interaction --no-ansi --no-progress
-                  php vendor/bin/simple-phpunit
-            - name: LiveComponent
-              run: |
-                  cd src/LiveComponent
-                  php ../../.github/build-packages.php
-                  composer update --prefer-dist --no-interaction --no-ansi --no-progress
                   php vendor/bin/simple-phpunit
 
     tests-js:
