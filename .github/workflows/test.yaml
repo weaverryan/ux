@@ -28,6 +28,7 @@ jobs:
         outputs:
             matrix: ${{ steps.set-matrix.outputs.matrix }}
         steps:
+            - uses: actions/checkout@master
             -   id: set-matrix
                 run: echo "::set-output name=matrix::$(.github/get-php-matrix.php)"
 
@@ -35,7 +36,7 @@ jobs:
         needs: provide_php_matrix_output
         runs-on: ubuntu-latest
         strategy:
-            matrix: ${{fromJson(needs.provide_php_matrix_output.outputs.matrix)}}
+            matrix: ${{ fromJson(needs.provide_php_matrix_output.outputs.matrix) }}
         steps:
             - uses: actions/checkout@master
             - uses: shivammathur/setup-php@v2
