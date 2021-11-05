@@ -35,11 +35,13 @@ jobs:
             - uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ env.DEFAULT_PHP_VERSION }}
-            -   id: set-matrix
-                run: echo "::set-output name=matrix::$(php .github/get-php-matrix.php)"
+            - name: Install dependencies
+              run: composer install
+            - id: set-matrix
+              run: echo "::set-output name=matrix::$(php .github/get-php-matrix.php)"
 
-    test-php-lowest-deps:
-        name: "${{ matrix.name }} on ${{ matrix.php_version }} lowest"
+    test-php:
+        name: ${{ matrix.build_name }}
         needs: provide_php_matrix_output
         runs-on: ubuntu-latest
         strategy:
@@ -54,7 +56,7 @@ jobs:
                   php .github/build-packages.php
             - name: Download Dependencies
                   cd ${{ matrix.path }}
-                  composer update --prefer-lowest --prefer-dist --no-interaction --no-ansi --no-progress
+                  composer update ${{ matrix.composer_flags }} --prefer-dist --no-interaction --no-ansi --no-progress
             - name: Run tests
                   cd ${{ matrix.path }}
                   php vendor/bin/simple-phpunit
