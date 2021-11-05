@@ -55,9 +55,11 @@ jobs:
               run: |
                   php .github/build-packages.php
             - name: Download Dependencies
+              run: |
                   cd ${{ matrix.path }}
                   composer update ${{ matrix.composer_flags }} --prefer-dist --no-interaction --no-ansi --no-progress
             - name: Run tests
+              run: |
                   cd ${{ matrix.path }}
                   php vendor/bin/simple-phpunit
 
