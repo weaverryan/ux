@@ -17,8 +17,17 @@ $finder->in(__DIR__.'/../src/*/')
  *
  * For example: ">=7.2.5" becomes "7.2"
  */
-function extractPhpMinorVersion($versionConstraint) {
-    $fullPhpVersion = preg_replace('/[^0-9.]/', '', $versionConstraint);
+function extractPhpMinorVersion(array $composerData): ?string
+{
+    if (!isset($composerData['require'])) {
+        return null;
+    }
+
+    if (!isset($composerData['require']['php'])) {
+        throw new \Exception(sprintf('Missing "php" requirement for package "%s"', $composerData['name']));
+    }
+
+    $fullPhpVersion = preg_replace('/[^0-9.]/', '', $composerData['require']['php']);
     $parts = explode('.', $fullPhpVersion);
 
     return sprintf('%s.%s', $parts[0], $parts[1]);
@@ -27,9 +36,12 @@ function extractPhpMinorVersion($versionConstraint) {
 const MAX_PHP_VERSION = '8.0';
 
 foreach ($finder as $file) {
-    // get the minimum PHP version supported
-    $phpRequirement = (json_decode($file->getContents(), true))['require']['php'];
-    $phpVersion = extractPhpMinorVersion($phpRequirement);
+    $phpVersion = extractPhpMinorVersion(json_decode($file->getContents(), true));
+
+    if (!$phpVersion) {
+        // some packages have no php code
+        continue;
+    }
 
     $directory = $file->getPathInfo()->getPathname();
     $packagePath = substr($directory, strpos($directory, '../src/') + 7);
