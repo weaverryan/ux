@@ -35,10 +35,10 @@ final class LiveComponentHydratorTest extends KernelTestCase
     public function testCanDehydrateAndHydrateLiveComponent(): void
     {
         /** @var LiveComponentHydrator $hydrator */
-        $hydrator = self::container()->get('ux.live_component.component_hydrator');
+        $hydrator = self::getContainer()->get('ux.live_component.component_hydrator');
 
         /** @var ComponentFactory $factory */
-        $factory = self::container()->get('ux.twig_component.component_factory');
+        $factory = self::getContainer()->get('ux.twig_component.component_factory');
 
         /** @var Component1 $component */
         $component = $factory->create('component1', [
@@ -74,10 +74,10 @@ final class LiveComponentHydratorTest extends KernelTestCase
     public function testCanModifyWritableProps(): void
     {
         /** @var LiveComponentHydrator $hydrator */
-        $hydrator = self::container()->get('ux.live_component.component_hydrator');
+        $hydrator = self::getContainer()->get('ux.live_component.component_hydrator');
 
         /** @var ComponentFactory $factory */
-        $factory = self::container()->get('ux.twig_component.component_factory');
+        $factory = self::getContainer()->get('ux.twig_component.component_factory');
 
         /** @var Component1 $component */
         $component = $factory->create('component1', [
@@ -99,10 +99,10 @@ final class LiveComponentHydratorTest extends KernelTestCase
     public function testCannotModifyReadonlyProps(): void
     {
         /** @var LiveComponentHydrator $hydrator */
-        $hydrator = self::container()->get('ux.live_component.component_hydrator');
+        $hydrator = self::getContainer()->get('ux.live_component.component_hydrator');
 
         /** @var ComponentFactory $factory */
-        $factory = self::container()->get('ux.twig_component.component_factory');
+        $factory = self::getContainer()->get('ux.twig_component.component_factory');
 
         /** @var Component1 $component */
         $component = $factory->create('component1', [
@@ -123,10 +123,10 @@ final class LiveComponentHydratorTest extends KernelTestCase
     public function testHydrationFailsIfChecksumMissing(): void
     {
         /** @var LiveComponentHydrator $hydrator */
-        $hydrator = self::container()->get('ux.live_component.component_hydrator');
+        $hydrator = self::getContainer()->get('ux.live_component.component_hydrator');
 
         /** @var ComponentFactory $factory */
-        $factory = self::container()->get('ux.twig_component.component_factory');
+        $factory = self::getContainer()->get('ux.twig_component.component_factory');
 
         $this->expectException(\RuntimeException::class);
         $hydrator->hydrate($factory->get('component1'), []);
@@ -135,10 +135,10 @@ final class LiveComponentHydratorTest extends KernelTestCase
     public function testHydrationFailsOnChecksumMismatch(): void
     {
         /** @var LiveComponentHydrator $hydrator */
-        $hydrator = self::container()->get('ux.live_component.component_hydrator');
+        $hydrator = self::getContainer()->get('ux.live_component.component_hydrator');
 
         /** @var ComponentFactory $factory */
-        $factory = self::container()->get('ux.twig_component.component_factory');
+        $factory = self::getContainer()->get('ux.twig_component.component_factory');
 
         $this->expectException(\RuntimeException::class);
         $hydrator->hydrate($factory->get('component1'), ['_checksum' => 'invalid']);
@@ -147,10 +147,10 @@ final class LiveComponentHydratorTest extends KernelTestCase
     public function testPreDehydrateAndPostHydrateHooksCalled(): void
     {
         /** @var LiveComponentHydrator $hydrator */
-        $hydrator = self::container()->get('ux.live_component.component_hydrator');
+        $hydrator = self::getContainer()->get('ux.live_component.component_hydrator');
 
         /** @var ComponentFactory $factory */
-        $factory = self::container()->get('ux.twig_component.component_factory');
+        $factory = self::getContainer()->get('ux.twig_component.component_factory');
 
         /** @var Component2 $component */
         $component = $factory->create('component2');
@@ -178,10 +178,10 @@ final class LiveComponentHydratorTest extends KernelTestCase
     public function testDeletingEntityBetweenDehydrationAndHydrationSetsItToNull(): void
     {
         /** @var LiveComponentHydrator $hydrator */
-        $hydrator = self::container()->get('ux.live_component.component_hydrator');
+        $hydrator = self::getContainer()->get('ux.live_component.component_hydrator');
 
         /** @var ComponentFactory $factory */
-        $factory = self::container()->get('ux.twig_component.component_factory');
+        $factory = self::getContainer()->get('ux.twig_component.component_factory');
 
         $entity = create(Entity1::class);
 
@@ -214,10 +214,10 @@ final class LiveComponentHydratorTest extends KernelTestCase
     public function testCorrectlyUsesCustomFrontendNameInDehydrateAndHydrate(): void
     {
         /** @var LiveComponentHydrator $hydrator */
-        $hydrator = self::container()->get('ux.live_component.component_hydrator');
+        $hydrator = self::getContainer()->get('ux.live_component.component_hydrator');
 
         /** @var ComponentFactory $factory */
-        $factory = self::container()->get('ux.twig_component.component_factory');
+        $factory = self::getContainer()->get('ux.twig_component.component_factory');
 
         /** @var Component3 $component */
         $component = $factory->create('component3', ['prop1' => 'value1', 'prop2' => 'value2']);

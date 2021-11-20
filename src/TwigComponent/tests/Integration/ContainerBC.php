@@ -2,16 +2,18 @@
 
 namespace Symfony\UX\TwigComponent\Tests\Integration;
 
-use Psr\Container\ContainerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
+ * Enables using the getContainer() method in Symfony < 5.3.
+ *
  * @author Kevin Bond <kevinbond@gmail.com>
  */
 trait ContainerBC
 {
-    private static function container(): ContainerInterface
+    protected static function getContainer(): ContainerInterface
     {
-        if (!\method_exists(static::class, 'getContainer')) {
+        if (!\method_exists(parent::class, 'getContainer')) {
             if (!static::$booted) {
                 static::bootKernel();
             }
@@ -19,6 +21,6 @@ trait ContainerBC
             return self::$container;
         }
 
-        return self::getContainer();
+        return parent::getContainer();
     }
 }
