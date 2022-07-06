@@ -10,9 +10,7 @@
 'use strict';
 
 import { shutdownTest, createTest, initComponent } from '../tools';
-import { createEvent, fireEvent, getByText, waitFor } from '@testing-library/dom';
-import userEvent from '@testing-library/user-event';
-import fetchMock from 'fetch-mock-jest';
+import { waitFor } from '@testing-library/dom';
 
 describe('LiveController polling Tests', () => {
     afterEach(() => {
@@ -112,4 +110,79 @@ describe('LiveController polling Tests', () => {
             timeout: 600
         });
     });
+
+    // check polling stops after disconnect
+
+    it('polling should stop if data-poll is removed', async () => {
+        const test = await createTest({ keepPolling: true, renderCount: 0 }, (data: any) => `
+            <div ${initComponent(data)} ${data.keepPolling ? 'data-poll="delay(500)|$render"' : ''}>
+                <span>Render count: ${data.renderCount}</span>
+            </div>
+        `);
+
+        // poll 1
+        test.expectsAjaxCall('get')
+            .expectSentData(test.initialData)
+            .serverWillChangeData((data: any) => {
+                data.renderCount = 1;
+            })
+            .init();
+        // poll 2
+        test.expectsAjaxCall('get')
+            .expectSentData({keepPolling: true, renderCount: 1})
+            .serverWillChangeData((data: any) => {
+                data.renderCount = 2;
+                data.keepPolling = false;
+            })
+            .init();
+
+        // only wait for about 500ms this time
+        await waitFor(() => expect(test.element).toHaveTextContent('Render count: 1'), {
+            timeout: 600
+        });
+        await waitFor(() => expect(test.element).toHaveTextContent('Render count: 2'), {
+            timeout: 600
+        });
+        // wait 1 more second... no more Ajax calls should be made
+        const timeoutPromise = new Promise((resolve) => {
+            setTimeout(() => {
+                resolve(true);
+            }, 1000);
+        });
+        await waitFor(() => timeoutPromise, {
+            timeout: 1500
+        });
+    });
+
+    it('stops polling after it disconnects', async () => {
+       const test = await createTest({ renderCount: 0 }, (data: any) => `
+           <div ${initComponent(data)} data-poll="delay(500)|$render">
+               <span>Render count: ${data.renderCount}</span>
+           </div>
+       `);
+
+       // poll 1
+       test.expectsAjaxCall('get')
+           .expectSentData(test.initialData)
+           .serverWillChangeData((data: any) => {
+               data.renderCount = 1;
+           })
+           .init();
+
+       // only wait for about 500ms this time
+       await waitFor(() => expect(test.element).toHaveTextContent('Render count: 1'), {
+           timeout: 600
+       });
+       // "remove" our controller from the page
+       document.body.innerHTML = '<div>something else</div>';
+        // wait 1 more second... no more Ajax calls should be made
+        const timeoutPromise = new Promise((resolve) => {
+            setTimeout(() => {
+                resolve(true);
+            }, 1000);
+        });
+        await waitFor(() => timeoutPromise, {
+            timeout: 1500
+        });
+   });
 });
