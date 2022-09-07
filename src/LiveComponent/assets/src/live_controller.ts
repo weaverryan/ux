@@ -1,12 +1,24 @@
 import { Controller } from '@hotwired/stimulus';
 import morphdom from 'morphdom';
 import { parseDirectives, Directive } from './directives_parser';
-import { combineSpacedArray, normalizeModelName } from './string_utils';
+import { normalizeModelName } from './string_utils';
 import { haveRenderedValuesChanged } from './have_rendered_values_changed';
 import { normalizeAttributesForComparison } from './normalize_attributes_for_comparison';
 import ValueStore from './ValueStore';
-import { elementBelongsToThisController, getModelDirectiveFromInput, getValueFromInput, cloneHTMLElement, htmlToElement, getElementAsTagText } from './dom_utils';
+import {
+    elementBelongsToThisController,
+    getModelDirectiveFromInput,
+    getValueFromInput,
+    cloneHTMLElement,
+    htmlToElement,
+    getElementAsTagText,
+    addAttributes,
+    removeAttributes
+} from './dom_utils';
 import UnsyncedInputContainer from './UnsyncedInputContainer';
+import BackendRequest from './BackendRequest';
+import { getLoadingActionCallable } from './loading_execution';
+import LoadingCoordinator from './LoadingCoordinator';
 
 interface ElementLoadingDirectives {
     element: HTMLElement|SVGElement,
@@ -64,9 +76,9 @@ export default class extends Controller implements LiveController {
     /**
      * A stack of all current AJAX Promises for re-rendering.
      *
-     * @type {PromiseStack}
+     * @type {BackendRequestStack}
      */
-    renderPromiseStack = new PromiseStack();
+    backendRequestStack = new BackendRequestStack();
 
     isActionProcessing = false;
 
@@ -87,6 +99,8 @@ export default class extends Controller implements LiveController {
 
     pendingActionTriggerModelElement: HTMLElement|null = null;
 
+    loadingCoordinator: LoadingCoordinator;
+
     initialize() {
         this.markAsWindowUnloaded = this.markAsWindowUnloaded.bind(this);
         this.handleUpdateModelEvent = this.handleUpdateModelEvent.bind(this);
@@ -97,12 +111,14 @@ export default class extends Controller implements LiveController {
         this.valueStore = new ValueStore(this);
         this.originalDataJSON = this.valueStore.asJson();
         this.unsyncedInputs = new UnsyncedInputContainer();
+        this.loadingCoordinator = new LoadingCoordinator();
         this._exposeOriginalData();
     }
 
     connect() {
         // hide "loading" elements to begin with
         // This is done with CSS, but only for the most basic cases
+        // TODO: fix this
         this._onLoadingFinish();
 
         // helps typescript be sure this is an HTMLElement, not just Element
@@ -259,7 +275,7 @@ export default class extends Controller implements LiveController {
         if (eventName === 'input') {
             const modelName = modelDirective ? modelDirective.action : null;
             // notify existing promises of the new modified input
-            this.renderPromiseStack.addModifiedElement(element, modelName);
+            this.backendRequestStack.addModifiedElement(element, modelName);
             // track any inputs that are "unsynced"
             this.unsyncedInputs.add(element, modelName);
         }
@@ -454,12 +470,20 @@ export default class extends Controller implements LiveController {
             fetchOptions.headers['Content-Type'] = 'application/json';
         }
 
-        this._onLoadingStart();
         const paramsString = params.toString();
         const thisPromise = fetch(`${url}${paramsString.length > 0 ? `?${paramsString}` : ''}`, fetchOptions);
-        const reRenderPromise = new ReRenderPromise(thisPromise, this.unsyncedInputs.clone());
-        this.renderPromiseStack.addPromise(reRenderPromise);
+        const backendRequest = new BackendRequest(thisPromise, this.unsyncedInputs.clone(), action);
+        this._onLoadingStart(backendRequest);
+        this.backendRequestStack.addRequest(backendRequest);
         thisPromise.then((response) => {
+            // TODO: should some of this be moved into the BackendRequest?
+            // including, potentially, loading stuff?
+
+            // remove the loading behavior now so that when we morphdom
+            // "diffs" the elements, any loading differences will not cause
+            // elements to appear different unnecessarily
+            this._onLoadingFinish(backendRequest);
+
             if (action) {
                 this.isActionProcessing = false;
             }
@@ -469,10 +493,10 @@ export default class extends Controller implements LiveController {
                 return;
             }
 
-            const isMostRecent = this.renderPromiseStack.removePromise(thisPromise);
+            const isMostRecent = this.backendRequestStack.removeRequest(thisPromise);
             if (isMostRecent) {
                 response.text().then((html) => {
-                    this._processRerender(html, response, reRenderPromise.unsyncedInputContainer);
+                    this._processRerender(html, response, backendRequest.unsyncedInputContainer);
                 });
             }
         })
@@ -505,11 +529,6 @@ export default class extends Controller implements LiveController {
             return;
         }
 
-        // remove the loading behavior now so that when we morphdom
-        // "diffs" the elements, any loading differences will not cause
-        // elements to appear different unnecessarily
-        this._onLoadingFinish();
-
         /**
          * If this re-render contains "mapped" fields that were updated after
          * the Ajax call started, then we need those "unsynced" values to
@@ -538,97 +557,91 @@ export default class extends Controller implements LiveController {
         }
     }
 
-    _onLoadingStart() {
-        this._handleLoadingToggle(true);
+    _onLoadingStart(backendRequest: BackendRequest) {
+        this._handleLoadingToggle(true, backendRequest);
     }
 
-    _onLoadingFinish() {
-        this._handleLoadingToggle(false);
+    _onLoadingFinish(backendRequest: BackendRequest) {
+        this._handleLoadingToggle(false, backendRequest);
     }
 
-    _handleLoadingToggle(isLoading: boolean) {
+    _handleLoadingToggle(isLoading: boolean, backendRequest: BackendRequest) {
         this._getLoadingDirectives().forEach(({ element, directives }) => {
             // so we can track, at any point, if an element is in a "loading" state
             if (isLoading) {
-                this._addAttributes(element, ['data-live-is-loading']);
+                addAttributes(element, ['data-live-is-loading']);
             } else {
-                this._removeAttributes(element, ['data-live-is-loading']);
+                removeAttributes(element, ['data-live-is-loading']);
             }
 
             directives.forEach((directive) => {
-                this._handleLoadingDirective(element, isLoading, directive)
+                this._handleElementLoadingDirective(element, isLoading, directive, backendRequest)
             });
         });
     }
 
     /**
+     * Applies a single data-loading directive for an element.
+     *
      * @private
      */
-    _handleLoadingDirective(element: HTMLElement|SVGElement, isLoading: boolean, directive: Directive) {
-        const finalAction = parseLoadingAction(directive.action, isLoading);
+    _handleElementLoadingDirective(element: HTMLElement|SVGElement, isLoading: boolean, directive: Directive, reRenderPromise: BackendRequest) {
+        // each argument (e.g. "foo" then "bar" in addClass(foo, bar)) is processed individually
+        directive.args.forEach((arg) => {
+            const triggerLoading = () => {
+                const callable = getLoadingActionCallable(element, directive.action, arg);
+                callable();
+                this.loadingCoordinator.addElementAction(
+                    element,
+                    reRenderPromise,
+                    directive.action,
+                    arg
+                )
+            }
 
-        let loadingDirective: (() => void);
+            let isHandled = false;
+            directive.modifiers.forEach((modifier => {
+                switch (modifier.name) {
+                    case 'delay': {
+                        // if loading has *stopped*, the delay modifier has no effect
+                        if (!isLoading) {
+                            break;
+                        }
 
-        switch (finalAction) {
-            case 'show':
-                loadingDirective = () => {
-                    this._showElement(element)
-                };
-                break;
+                        const delayLength = modifier.value ? parseInt(modifier.value) : 200;
+                        window.setTimeout(() => {
+                            // avoid triggering loading if the promise is already resolved
+                            if (!reRenderPromise.isResolved()) {
+                                triggerLoading();
+                            }
+                        }, delayLength);
 
-            case 'hide':
-                loadingDirective = () => this._hideElement(element);
-                break;
+                        isHandled = true;
 
-            case 'addClass':
-                loadingDirective = () => this._addClass(element, directive.args);
-                break;
-
-            case 'removeClass':
-                loadingDirective = () => this._removeClass(element, directive.args);
-                break;
-
-            case 'addAttribute':
-                loadingDirective = () => this._addAttributes(element, directive.args);
-                break;
-
-            case 'removeAttribute':
-                loadingDirective = () => this._removeAttributes(element, directive.args);
-                break;
-
-            default:
-                throw new Error(`Unknown data-loading action "${finalAction}"`);
-        }
-
-        let isHandled = false;
-        directive.modifiers.forEach((modifier => {
-            switch (modifier.name) {
-                case 'delay': {
-                    // if loading has *stopped*, the delay modifier has no effect
-                    if (!isLoading) {
                         break;
                     }
 
-                    const delayLength = modifier.value ? parseInt(modifier.value) : 200;
-                    window.setTimeout(() => {
-                        if (element.hasAttribute('data-live-is-loading')) {
-                            loadingDirective();
-                        }
-                    }, delayLength);
+                    case 'action':
+                        // TODO: AVOID triggering the loading unless the current promise's action
+                        // equals this action value
 
-                    isHandled = true;
+                        // TODO also, unrelated to this section, we need to handle "removing" the loading
+                        // by finding all of the "loading actions" for a given ReRenderPromise,
+                        // removing them from the LoadingCoordinator, and then reversing their
+                        // action if no other promises are forcing that behavior
 
-                    break;
+                        break;
+
+                    default:
+                        throw new Error(`Unknown modifier ${modifier.name} used in the loading directive ${directive.getString()}`)
                 }
-                default:
-                    throw new Error(`Unknown modifier ${modifier.name} used in the loading directive ${directive.getString()}`)
-            }
-        }));
+            }));
 
-        // execute the loading directive
-        if (!isHandled) {
-            loadingDirective();
-        }
+            // execute the loading directive
+            if (!isHandled) {
+                triggerLoading();
+            }
+        });
     }
 
     _getLoadingDirectives() {
@@ -649,39 +662,6 @@ export default class extends Controller implements LiveController {
         }));
 
         return loadingDirectives;
-    }
-
-    _showElement(element: HTMLElement|SVGElement) {
-        element.style.display = 'inline-block';
-    }
-
-    _hideElement(element: HTMLElement|SVGElement) {
-        element.style.display = 'none';
-    }
-
-    _addClass(element: HTMLElement|SVGElement, classes: string[]) {
-        element.classList.add(...combineSpacedArray(classes));
-    }
-
-    _removeClass(element: HTMLElement|SVGElement, classes: string[]) {
-        element.classList.remove(...combineSpacedArray(classes));
-
-        // remove empty class="" to avoid morphdom "diff" problem
-        if (element.classList.length === 0) {
-            this._removeAttributes(element, ['class']);
-        }
-    }
-
-    _addAttributes(element: Element, attributes: string[]) {
-        attributes.forEach((attribute) => {
-            element.setAttribute(attribute, '');
-        })
-    }
-
-    _removeAttributes(element: Element, attributes: string[]) {
-        attributes.forEach((attribute) => {
-            element.removeAttribute(attribute);
-        })
     }
 
     _willDataFitInUrl(dataJson: string, params: URLSearchParams) {
@@ -862,7 +842,7 @@ export default class extends Controller implements LiveController {
 
         const timer = setInterval(() => {
             // if there is already an active render promise, skip the poll
-            if (this.renderPromiseStack.countActivePromises() > 0) {
+            if (this.backendRequestStack.countActiveRequests() > 0) {
                 return;
             }
 
@@ -1041,19 +1021,21 @@ export default class extends Controller implements LiveController {
 }
 
 /**
- * Tracks the current "re-render" promises.
+ * Tracks the pending "backend requests"
  */
-class PromiseStack {
-    stack: Array<ReRenderPromise> = [];
+class BackendRequestStack {
+    stack: Array<BackendRequest> = [];
 
-    addPromise(reRenderPromise: ReRenderPromise) {
-        this.stack.push(reRenderPromise);
+    addRequest(backendRequest: BackendRequest) {
+        this.stack.push(backendRequest);
     }
 
     /**
-     * Removes the promise AND returns `true` if it is the most recent.
+     * Removes the request for the given Promise.
+     *
+     * ALSO returns `true` if it is the most recent.
      */
-    removePromise(promise: Promise<any>): boolean {
+    removeRequest(promise: Promise<any>): boolean {
         const index = this.#findPromiseIndex(promise);
 
         // promise was not found - it was removed because a new Promise
@@ -1075,7 +1057,7 @@ class PromiseStack {
         return this.stack.findIndex((item) => item.promise === promise);
     }
 
-    countActivePromises(): number {
+    countActiveRequests(): number {
         return this.stack.length;
     }
 
@@ -1086,35 +1068,3 @@ class PromiseStack {
     }
 }
 
-class ReRenderPromise {
-    promise: Promise<any>;
-    unsyncedInputContainer: UnsyncedInputContainer;
-
-    constructor(promise: Promise<any>, unsyncedInputContainer: UnsyncedInputContainer) {
-        this.promise = promise;
-        this.unsyncedInputContainer = unsyncedInputContainer;
-    }
-
-    addModifiedElement(element: HTMLElement, modelName: string|null = null): void {
-        this.unsyncedInputContainer.add(element, modelName);
-    }
-}
-
-const parseLoadingAction = function(action: string, isLoading: boolean) {
-    switch (action) {
-        case 'show':
-            return isLoading ? 'show' : 'hide';
-        case 'hide':
-            return isLoading ? 'hide' : 'show';
-        case 'addClass':
-            return isLoading ? 'addClass' : 'removeClass';
-        case 'removeClass':
-            return isLoading ? 'removeClass' : 'addClass';
-        case 'addAttribute':
-            return isLoading ? 'addAttribute' : 'removeAttribute';
-        case 'removeAttribute':
-            return isLoading ? 'removeAttribute' : 'addAttribute';
-    }
-
-    throw new Error(`Unknown data-loading action "${action}"`);
-}

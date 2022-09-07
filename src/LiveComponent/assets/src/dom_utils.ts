@@ -1,7 +1,7 @@
 import ValueStore from './ValueStore';
 import { Directive, parseDirectives } from './directives_parser';
 import { LiveController } from './live_controller';
-import { normalizeModelName } from './string_utils';
+import { combineSpacedArray, normalizeModelName } from './string_utils';
 
 /**
  * Return the "value" of any given element.
@@ -163,6 +163,35 @@ export function htmlToElement(html: string): HTMLElement {
  */
 export function getElementAsTagText(element: HTMLElement): string {
     return element.innerHTML ? element.outerHTML.slice(0, element.outerHTML.indexOf(element.innerHTML)) : element.outerHTML;
+}
+
+export function setDisplayStyle(element: HTMLElement|SVGElement, displayStyle: string) {
+       element.style.display = displayStyle;
+}
+
+export function addClass(element: HTMLElement|SVGElement, classes: string[]) {
+   element.classList.add(...combineSpacedArray(classes));
+}
+
+export function removeClass(element: HTMLElement|SVGElement, classes: string[]) {
+   element.classList.remove(...combineSpacedArray(classes));
+
+   // remove empty class="" to avoid morphdom "diff" problem
+   if (element.classList.length === 0) {
+       removeAttributes(element, ['class']);
+   }
+}
+
+export function addAttributes(element: Element, attributes: string[]) {
+   attributes.forEach((attribute) => {
+       element.setAttribute(attribute, '');
+   })
+}
+
+export function removeAttributes(element: Element, attributes: string[]) {
+   attributes.forEach((attribute) => {
+       element.removeAttribute(attribute);
+   })
 }
 
 const getMultipleCheckboxValue = function(element: HTMLInputElement, currentValues: Array<string>): Array<string> {
