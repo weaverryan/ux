@@ -558,14 +558,6 @@ export default class extends Controller implements LiveController {
     }
 
     _onLoadingStart(backendRequest: BackendRequest) {
-        this._handleLoadingToggle(backendRequest);
-    }
-
-    _onLoadingFinish(backendRequest: BackendRequest) {
-        throw new Error('TODO: reverse loading!');
-    }
-
-    _handleLoadingToggle(backendRequest: BackendRequest) {
         this._getLoadingDirectives().forEach(({ element, directives }) => {
             // so we can track, at any point, if an element is in a "loading" state
             addAttributes(element, ['data-live-is-loading']);
@@ -574,6 +566,15 @@ export default class extends Controller implements LiveController {
                 this._handleElementLoadingDirective(element, directive, backendRequest)
             });
         });
+    }
+
+    _onLoadingFinish(backendRequest: BackendRequest) {
+        throw new Error('TODO: reverse loading!');
+
+        // TODO also, unrelated to this section, we need to handle "removing" the loading
+        // by finding all of the "loading actions" for a given ReRenderPromise,
+        // removing them from the LoadingCoordinator, and then reversing their
+        // action if no other promises are forcing that behavior
     }
 
     /**
@@ -631,11 +632,6 @@ export default class extends Controller implements LiveController {
                         }
 
                         isLoadingBehaviorTiedToThisAction = modifier.value === backendRequest.action;
-
-                        // TODO also, unrelated to this section, we need to handle "removing" the loading
-                        // by finding all of the "loading actions" for a given ReRenderPromise,
-                        // removing them from the LoadingCoordinator, and then reversing their
-                        // action if no other promises are forcing that behavior
 
                         break;
 
