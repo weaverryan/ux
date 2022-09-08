@@ -558,24 +558,20 @@ export default class extends Controller implements LiveController {
     }
 
     _onLoadingStart(backendRequest: BackendRequest) {
-        this._handleLoadingToggle(true, backendRequest);
+        this._handleLoadingToggle(backendRequest);
     }
 
     _onLoadingFinish(backendRequest: BackendRequest) {
-        this._handleLoadingToggle(false, backendRequest);
+        throw new Error('TODO: reverse loading!');
     }
 
-    _handleLoadingToggle(isLoading: boolean, backendRequest: BackendRequest) {
+    _handleLoadingToggle(backendRequest: BackendRequest) {
         this._getLoadingDirectives().forEach(({ element, directives }) => {
             // so we can track, at any point, if an element is in a "loading" state
-            if (isLoading) {
-                addAttributes(element, ['data-live-is-loading']);
-            } else {
-                removeAttributes(element, ['data-live-is-loading']);
-            }
+            addAttributes(element, ['data-live-is-loading']);
 
             directives.forEach((directive) => {
-                this._handleElementLoadingDirective(element, isLoading, directive, backendRequest)
+                this._handleElementLoadingDirective(element, directive, backendRequest)
             });
         });
     }
@@ -585,7 +581,7 @@ export default class extends Controller implements LiveController {
      *
      * @private
      */
-    _handleElementLoadingDirective(element: HTMLElement|SVGElement, isLoading: boolean, directive: Directive, backendRequest: BackendRequest) {
+    _handleElementLoadingDirective(element: HTMLElement|SVGElement, directive: Directive, backendRequest: BackendRequest) {
         // each argument (e.g. "foo" then "bar" in addClass(foo, bar)) is processed individually
         directive.args.forEach((arg) => {
 
@@ -593,6 +589,11 @@ export default class extends Controller implements LiveController {
             let isLoadingBehaviorTiedToThisAction: boolean|null = null;
             const triggerLoading = () => {
                 if (isLoadingBehaviorTiedToThisAction === false) {
+                    return;
+                }
+
+                // if loading has already stopped, skip the loading behavior
+                if (backendRequest.isPromiseResolved) {
                     return;
                 }
 
@@ -610,11 +611,6 @@ export default class extends Controller implements LiveController {
             directive.modifiers.forEach((modifier => {
                 switch (modifier.name) {
                     case 'delay': {
-                        // if loading has *stopped*, the delay modifier has no effect
-                        if (!isLoading) {
-                            break;
-                        }
-
                         const delayLength = modifier.value ? parseInt(modifier.value) : 200;
                         window.setTimeout(() => {
                             // avoid triggering loading if the promise is already resolved
