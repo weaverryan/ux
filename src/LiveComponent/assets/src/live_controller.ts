@@ -585,15 +585,22 @@ export default class extends Controller implements LiveController {
      *
      * @private
      */
-    _handleElementLoadingDirective(element: HTMLElement|SVGElement, isLoading: boolean, directive: Directive, reRenderPromise: BackendRequest) {
+    _handleElementLoadingDirective(element: HTMLElement|SVGElement, isLoading: boolean, directive: Directive, backendRequest: BackendRequest) {
         // each argument (e.g. "foo" then "bar" in addClass(foo, bar)) is processed individually
         directive.args.forEach((arg) => {
+
+            // should this data-loading fire for the give action (if there is one)
+            let isLoadingBehaviorTiedToThisAction: boolean|null = null;
             const triggerLoading = () => {
+                if (isLoadingBehaviorTiedToThisAction === false) {
+                    return;
+                }
+
                 const callable = getLoadingActionCallable(element, directive.action, arg);
                 callable();
                 this.loadingCoordinator.addElementAction(
                     element,
-                    reRenderPromise,
+                    backendRequest,
                     directive.action,
                     arg
                 )
@@ -611,7 +618,7 @@ export default class extends Controller implements LiveController {
                         const delayLength = modifier.value ? parseInt(modifier.value) : 200;
                         window.setTimeout(() => {
                             // avoid triggering loading if the promise is already resolved
-                            if (!reRenderPromise.isResolved()) {
+                            if (!backendRequest.isResolved()) {
                                 triggerLoading();
                             }
                         }, delayLength);
@@ -622,8 +629,12 @@ export default class extends Controller implements LiveController {
                     }
 
                     case 'action':
-                        // TODO: AVOID triggering the loading unless the current promise's action
-                        // equals this action value
+                        // check if a previous action modifier has already matched
+                        if (isLoadingBehaviorTiedToThisAction === true) {
+                            break;
+                        }
+
+                        isLoadingBehaviorTiedToThisAction = modifier.value === backendRequest.action;
 
                         // TODO also, unrelated to this section, we need to handle "removing" the loading
                         // by finding all of the "loading actions" for a given ReRenderPromise,
