@@ -460,7 +460,7 @@ changes until loading has taken longer than a certain amount of time:
     <!-- Show after 500ms of loading -->
     <div data-loading="delay(500)|show">Loading</div>
 
-Targeting Loading for a Specifc Action
+Targeting Loading for a Specific Action
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To only toggle the loading behavior when a specific action is triggered,

@@ -1,19 +1,22 @@
 import UnsyncedInputContainer from './UnsyncedInputContainer';
+import LoadingAction from "./LoadingAction";
 
 export default class BackendRequest {
-    promise: Promise<any>;
-    unsyncedInputContainer: UnsyncedInputContainer;
-    isPromiseResolved = false;
-    action: null|string;
+    readonly promise: Promise<any>;
+    readonly unsyncedInputContainer: UnsyncedInputContainer;
+    #isPromiseResolved = false;
+    readonly action: null|string;
+    readonly loadingActions: Array<LoadingAction> = [];
 
-    constructor(promise: Promise<any>, unsyncedInputContainer: UnsyncedInputContainer, action: string|null) {
+    constructor(promise: Promise<any>, unsyncedInputContainer: UnsyncedInputContainer, loadingActions: Array<LoadingAction>, action: string|null) {
         this.promise = promise;
         this.promise.then((data) => {
-            this.isPromiseResolved = true;
+            this.#isPromiseResolved = true;
 
             return data;
         });
         this.unsyncedInputContainer = unsyncedInputContainer;
+        this.loadingActions = loadingActions;
         this.action = action;
     }
 
@@ -22,6 +25,6 @@ export default class BackendRequest {
     }
 
     isResolved() {
-        return this.isResolved;
+        return this.#isPromiseResolved;
     }
 }

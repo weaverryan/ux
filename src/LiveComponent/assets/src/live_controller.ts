@@ -12,13 +12,12 @@ import {
     cloneHTMLElement,
     htmlToElement,
     getElementAsTagText,
-    addAttributes,
-    removeAttributes
+    addAttributes
 } from './dom_utils';
 import UnsyncedInputContainer from './UnsyncedInputContainer';
 import BackendRequest from './BackendRequest';
-import { getLoadingActionCallable } from './loading_execution';
 import LoadingCoordinator from './LoadingCoordinator';
+import LoadingAction from "./LoadingAction";
 
 interface ElementLoadingDirectives {
     element: HTMLElement|SVGElement,
@@ -472,8 +471,12 @@ export default class extends Controller implements LiveController {
 
         const paramsString = params.toString();
         const thisPromise = fetch(`${url}${paramsString.length > 0 ? `?${paramsString}` : ''}`, fetchOptions);
-        const backendRequest = new BackendRequest(thisPromise, this.unsyncedInputs.clone(), action);
-        this._onLoadingStart(backendRequest);
+        const backendRequest = new BackendRequest(
+            thisPromise,
+            this.unsyncedInputs.clone(),
+            this.#getLoadingActions(action),
+            action
+        );
         this.backendRequestStack.addRequest(backendRequest);
         thisPromise.then((response) => {
             // TODO: should some of this be moved into the BackendRequest?
@@ -557,15 +560,51 @@ export default class extends Controller implements LiveController {
         }
     }
 
-    _onLoadingStart(backendRequest: BackendRequest) {
+    #getLoadingActions(actionName: string|null): Array<LoadingAction> {
+        const loadingActions: Array<LoadingAction> = [];
+
         this._getLoadingDirectives().forEach(({ element, directives }) => {
             // so we can track, at any point, if an element is in a "loading" state
             addAttributes(element, ['data-live-is-loading']);
 
+            // loop over each directive e.g. addClass(foo, bar)
             directives.forEach((directive) => {
-                this._handleElementLoadingDirective(element, directive, backendRequest)
+                let delay = 0;
+                const targetedActions: string[] = [];
+
+                directive.modifiers.forEach((modifier => {
+                    switch (modifier.name) {
+                        case 'delay': {
+                            delay = modifier.value ? parseInt(modifier.value) : 200;
+
+                            break;
+                        }
+
+                        case 'action':
+                            if (!modifier.value) {
+                                throw new Error(`The "action" in data-loading must have an action name - e.g. action(foo). It's missing for ${directive.getString()}`)
+                            }
+                            targetedActions.push(modifier.value);
+                            break;
+
+                        default:
+                            throw new Error(`Unknown modifier ${modifier.name} used in the loading directive ${directive.getString()}`)
+                    }
+                }));
+
+                // skip if the loading is for a specific action that is not this action
+                if (targetedActions.length > 0 && (!actionName || !targetedActions.includes(actionName))) {
+                    return;
+                }
+
+                // each argument (e.g. "foo" then "bar" in addClass(foo, bar)) is processed individually
+                directive.args.forEach((arg) => {
+                    loadingActions.push(new LoadingAction(element, directive.action, arg, delay));
+                });
             });
         });
+
+        return loadingActions;
     }
 
     _onLoadingFinish(backendRequest: BackendRequest) {
@@ -575,76 +614,6 @@ export default class extends Controller implements LiveController {
         // by finding all of the "loading actions" for a given ReRenderPromise,
         // removing them from the LoadingCoordinator, and then reversing their
         // action if no other promises are forcing that behavior
-    }
-
-    /**
-     * Applies a single data-loading directive for an element.
-     *
-     * @private
-     */
-    _handleElementLoadingDirective(element: HTMLElement|SVGElement, directive: Directive, backendRequest: BackendRequest) {
-        // each argument (e.g. "foo" then "bar" in addClass(foo, bar)) is processed individually
-        directive.args.forEach((arg) => {
-
-            // should this data-loading fire for the give action (if there is one)
-            let isLoadingBehaviorTiedToThisAction: boolean|null = null;
-            const triggerLoading = () => {
-                if (isLoadingBehaviorTiedToThisAction === false) {
-                    return;
-                }
-
-                // if loading has already stopped, skip the loading behavior
-                if (backendRequest.isPromiseResolved) {
-                    return;
-                }
-
-                const callable = getLoadingActionCallable(element, directive.action, arg);
-                callable();
-                this.loadingCoordinator.addElementAction(
-                    element,
-                    backendRequest,
-                    directive.action,
-                    arg
-                )
-            }
-
-            let isHandled = false;
-            directive.modifiers.forEach((modifier => {
-                switch (modifier.name) {
-                    case 'delay': {
-                        const delayLength = modifier.value ? parseInt(modifier.value) : 200;
-                        window.setTimeout(() => {
-                            // avoid triggering loading if the promise is already resolved
-                            if (!backendRequest.isResolved()) {
-                                triggerLoading();
-                            }
-                        }, delayLength);
-
-                        isHandled = true;
-
-                        break;
-                    }
-
-                    case 'action':
-                        // check if a previous action modifier has already matched
-                        if (isLoadingBehaviorTiedToThisAction === true) {
-                            break;
-                        }
-
-                        isLoadingBehaviorTiedToThisAction = modifier.value === backendRequest.action;
-
-                        break;
-
-                    default:
-                        throw new Error(`Unknown modifier ${modifier.name} used in the loading directive ${directive.getString()}`)
-                }
-            }));
-
-            // execute the loading directive
-            if (!isHandled) {
-                triggerLoading();
-            }
-        });
     }
 
     _getLoadingDirectives() {

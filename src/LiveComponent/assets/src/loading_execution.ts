@@ -5,17 +5,18 @@ import {
     removeClass,
     setDisplayStyle
 } from './dom_utils';
+import LoadingAction from './LoadingAction';
 
-export function getLoadingActionCallable(element: HTMLElement|SVGElement, actionName: string, arg = ''): () => void {
-    const loadingAction = parseLoadingAction(actionName, false);
+export function getLoadingActionCallable(loadingAction: LoadingAction): () => void {
+    const loadingActionName = parseLoadingAction(loadingAction.actionName, false);
 
-    return getLoadingCallable(loadingAction, element, arg);
+    return getLoadingCallable(loadingActionName, loadingAction.element, loadingAction.arg);
 }
 
-export function getReverseActionCallable(element: HTMLElement|SVGElement, actionName: string, arg = ''): () => void {
-    const loadingAction = parseLoadingAction(actionName, true);
+export function getReverseActionCallable(loadingAction: LoadingAction): () => void {
+    const loadingActionName = parseLoadingAction(loadingAction.actionName, true);
 
-    return getLoadingCallable(loadingAction, element, arg);
+    return getLoadingCallable(loadingActionName, loadingAction.element, loadingAction.arg);
 }
 
 const parseLoadingAction = function(action: string, isReversed: boolean) {
