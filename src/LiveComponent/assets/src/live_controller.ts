@@ -12,12 +12,12 @@ import {
     cloneHTMLElement,
     htmlToElement,
     getElementAsTagText,
-    addAttributes
 } from './dom_utils';
 import UnsyncedInputContainer from './UnsyncedInputContainer';
 import BackendRequest from './BackendRequest';
 import LoadingCoordinator from './LoadingCoordinator';
-import LoadingAction from "./LoadingAction";
+import LoadingAction from './LoadingAction';
+import { getReverseActionCallable } from './loading_execution';
 
 interface ElementLoadingDirectives {
     element: HTMLElement|SVGElement,
@@ -117,8 +117,7 @@ export default class extends Controller implements LiveController {
     connect() {
         // hide "loading" elements to begin with
         // This is done with CSS, but only for the most basic cases
-        // TODO: fix this
-        this._onLoadingFinish();
+        this.#initiateNonLoadingState();
 
         // helps typescript be sure this is an HTMLElement, not just Element
         if (!(this.element instanceof HTMLElement)) {
@@ -478,6 +477,7 @@ export default class extends Controller implements LiveController {
             action
         );
         this.backendRequestStack.addRequest(backendRequest);
+        this.loadingCoordinator.backendRequestStarted(backendRequest);
         thisPromise.then((response) => {
             // TODO: should some of this be moved into the BackendRequest?
             // including, potentially, loading stuff?
@@ -485,7 +485,8 @@ export default class extends Controller implements LiveController {
             // remove the loading behavior now so that when we morphdom
             // "diffs" the elements, any loading differences will not cause
             // elements to appear different unnecessarily
-            this._onLoadingFinish(backendRequest);
+            // this should happen even if this request's render is ultimately not used
+            this.loadingCoordinator.backendRequestFinished(backendRequest);
 
             if (action) {
                 this.isActionProcessing = false;
@@ -564,9 +565,6 @@ export default class extends Controller implements LiveController {
         const loadingActions: Array<LoadingAction> = [];
 
         this._getLoadingDirectives().forEach(({ element, directives }) => {
-            // so we can track, at any point, if an element is in a "loading" state
-            addAttributes(element, ['data-live-is-loading']);
-
             // loop over each directive e.g. addClass(foo, bar)
             directives.forEach((directive) => {
                 let delay = 0;
@@ -605,15 +603,6 @@ export default class extends Controller implements LiveController {
         });
 
         return loadingActions;
-    }
-
-    _onLoadingFinish(backendRequest: BackendRequest) {
-        throw new Error('TODO: reverse loading!');
-
-        // TODO also, unrelated to this section, we need to handle "removing" the loading
-        // by finding all of the "loading actions" for a given ReRenderPromise,
-        // removing them from the LoadingCoordinator, and then reversing their
-        // action if no other promises are forcing that behavior
     }
 
     _getLoadingDirectives() {
@@ -988,6 +977,24 @@ export default class extends Controller implements LiveController {
     private _stopAllPolling() {
         this.pollingIntervals.forEach((interval) => {
             clearInterval(interval);
+        });
+    }
+
+    /**
+     * Finds all data-loading="" elements & switches them to "not loading" state.
+     *
+     * This is called when a component initializes, most importantly so that
+     * elements that should only show when loading are hidden.
+     */
+    #initiateNonLoadingState() {
+        this._getLoadingDirectives().forEach(({ element, directives }) => {
+            directives.forEach((directive) => {
+                // each argument (e.g. "foo" then "bar" in addClass(foo, bar)) is processed individually
+                directive.args.forEach((arg) => {
+                    const loadingAction = new LoadingAction(element, directive.action, arg, 0);
+                    (getReverseActionCallable(loadingAction))();
+                });
+            });
         });
     }
 }

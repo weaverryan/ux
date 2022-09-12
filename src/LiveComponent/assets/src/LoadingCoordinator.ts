@@ -1,6 +1,6 @@
 import BackendRequest from './BackendRequest';
 import LoadingAction from "./LoadingAction";
-import {getLoadingActionCallable} from "./loading_execution";
+import { getLoadingActionCallable, getReverseActionCallable } from './loading_execution';
 
 interface ElementLoadingDetails {
     element: HTMLElement|SVGElement,
@@ -17,7 +17,10 @@ export default class LoadingCoordinator {
         this.backendRequestMap = new Map();
     }
 
-    backendRequestStarted(backendRequest: BackendRequest) {
+    /**
+     * Initiates all loading actions for this BackendRequest
+     */
+    backendRequestStarted(backendRequest: BackendRequest): void {
         backendRequest.loadingActions.forEach((loadingAction) => {
             // store the loading information, keyed by the Element
             const loadingActions = this.loadingElements.get(loadingAction.element) || new ElementLoadingActions(loadingAction.element);
@@ -44,42 +47,18 @@ export default class LoadingCoordinator {
         });
     }
 
-    backendRequestFinished(backendRequest: BackendRequest) {
-        // TODO: read the new backendRequest.loadingActions and execute
-        // "removeElementAction" below (should probably be private now)
-        // get the final array of LoadingActions that SHOULD be reversed,
-        // and reverse them
-        // TODO: we also need to call this from the proper place in live_controller
-    }
-
-
-    // TODO: can be deleted after backendRequestStarted is finished
-    addElementAction(element: HTMLElement|SVGElement, backendRequest: BackendRequest, actionName: string, arg = ''): void {
-        // store the loading information, keyed by the Element
-        const loadingActions = this.loadingElements.get(element) || new ElementLoadingActions(element);
-        loadingActions.addAction(backendRequest, actionName, arg);
-
-        // store the loading information keyed by the BackendRequest
-        const elementLoadingDetails = this.backendRequestMap.get(backendRequest) || [];
-        elementLoadingDetails.push({
-            element,
-            actionName,
-            arg
-        })
-    }
-
-
-
     /**
-     * Returns true if no other initiator is still triggering this action.
-     * This means that it is now safe to execute the "reverse" of the action.
-     *
-     * @returns bool
+     * Reverses all loading actions for this BackendRequest
      */
-    removeElementAction(element: HTMLElement|SVGElement, initiator: BackendRequest, actionName: string, arg = ''): boolean {
-        const loadingActions = this.loadingElements.get(element) || new ElementLoadingActions(element);
+    backendRequestFinished(backendRequest: BackendRequest): void {
+        backendRequest.loadingActions.forEach((loadingAction) => {
+            const loadingActions = this.loadingElements.get(loadingAction.element) || new ElementLoadingActions(loadingAction.element);
 
-        return loadingActions.removeAction(initiator, actionName, arg);
+            if (loadingActions.removeAction(backendRequest, loadingAction)) {
+                // the action should be reversed
+                (getReverseActionCallable(loadingAction))();
+            }
+        });
     }
 }
 
@@ -110,8 +89,8 @@ class ElementLoadingActions {
      *
      * @returns bool
      */
-    removeAction(initiator: BackendRequest, actionName: string, arg = ''): boolean {
-        const key = this.#calculateKey(actionName, arg);
+    removeAction(initiator: BackendRequest, loadingAction: LoadingAction): boolean {
+        const key = loadingAction.calculateKey();
 
         const initiators = this.actions.get(key) || [];
         const index = initiators.indexOf(initiator);
