@@ -68,6 +68,7 @@ class ElementLoadingActions {
 
     constructor(element: HTMLElement|SVGElement) {
         this.element = element;
+        this.actions  = new Map();
     }
 
     /**

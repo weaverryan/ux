@@ -546,7 +546,7 @@ export default class extends Controller implements LiveController {
         }
 
         // merge/patch in the new HTML
-        this._executeMorphdom(html, unsyncedInputContainer.all());
+        this.#executeMorphdom(html, unsyncedInputContainer.all());
 
         // reset the modified values back to their client-side version
         Object.keys(modifiedModelValues).forEach((modelName) => {
@@ -596,9 +596,13 @@ export default class extends Controller implements LiveController {
                 }
 
                 // each argument (e.g. "foo" then "bar" in addClass(foo, bar)) is processed individually
-                directive.args.forEach((arg) => {
-                    loadingActions.push(new LoadingAction(element, directive.action, arg, delay));
-                });
+                if (directive.args.length > 0) {
+                    directive.args.forEach((arg) => {
+                        loadingActions.push(new LoadingAction(element, directive.action, arg, delay));
+                    });
+                } else {
+                    loadingActions.push(new LoadingAction(element, directive.action, '', delay));
+                }
             });
         });
 
@@ -632,7 +636,7 @@ export default class extends Controller implements LiveController {
         return (urlEncodedJsonData + params.toString()).length < 1500;
     }
 
-    _executeMorphdom(newHtml: string, modifiedElements: Array<HTMLElement>) {
+    #executeMorphdom(newHtml: string, modifiedElements: Array<HTMLElement>) {
         const newElement = htmlToElement(newHtml);
         morphdom(this.element, newElement, {
             getNodeKey: (node: Node) => {
@@ -990,10 +994,15 @@ export default class extends Controller implements LiveController {
         this._getLoadingDirectives().forEach(({ element, directives }) => {
             directives.forEach((directive) => {
                 // each argument (e.g. "foo" then "bar" in addClass(foo, bar)) is processed individually
-                directive.args.forEach((arg) => {
-                    const loadingAction = new LoadingAction(element, directive.action, arg, 0);
+                if (directive.args.length > 0) {
+                    directive.args.forEach((arg) => {
+                        const loadingAction = new LoadingAction(element, directive.action, arg, 0);
+                        (getReverseActionCallable(loadingAction))();
+                    });
+                } else {
+                    const loadingAction = new LoadingAction(element, directive.action, '', 0);
                     (getReverseActionCallable(loadingAction))();
-                });
+                }
             });
         });
     }

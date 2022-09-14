@@ -23,7 +23,7 @@ describe('LiveController data-loading Tests', () => {
             <div ${initComponent(data)}>
                 <span>I like: ${data.food}</span> 
 
-                <span data-loading="show" test-id="loading-element">Loading...</span>
+                <span data-loading="show" data-testid="loading-element">Loading...</span>
                 <button data-action="live#$render">Re-Render</button>
             </div>
         `);

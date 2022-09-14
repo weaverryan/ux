@@ -9,30 +9,32 @@ import LoadingAction from './LoadingAction';
 
 export function getLoadingActionCallable(loadingAction: LoadingAction): () => void {
     const loadingActionName = parseLoadingAction(loadingAction.actionName, false);
+    console.log(loadingActionName, loadingAction.actionName);
 
     return getLoadingCallable(loadingActionName, loadingAction.element, loadingAction.arg);
 }
 
 export function getReverseActionCallable(loadingAction: LoadingAction): () => void {
     const loadingActionName = parseLoadingAction(loadingAction.actionName, true);
+    console.log(loadingActionName, loadingAction.actionName);
 
     return getLoadingCallable(loadingActionName, loadingAction.element, loadingAction.arg);
 }
 
-const parseLoadingAction = function(action: string, isReversed: boolean) {
+const parseLoadingAction = function(action: string, isReversed: boolean): string {
     switch (action) {
         case 'show':
-            return isReversed ? 'show' : 'hide';
-        case 'hide':
             return isReversed ? 'hide' : 'show';
+        case 'hide':
+            return isReversed ? 'show' : 'hide';
         case 'addClass':
-            return isReversed ? 'addClass' : 'removeClass';
-        case 'removeClass':
             return isReversed ? 'removeClass' : 'addClass';
+        case 'removeClass':
+            return isReversed ? 'addClass' : 'removeClass';
         case 'addAttribute':
-            return isReversed ? 'addAttribute' : 'removeAttribute';
-        case 'removeAttribute':
             return isReversed ? 'removeAttribute' : 'addAttribute';
+        case 'removeAttribute':
+            return isReversed ? 'addAttribute' : 'removeAttribute';
     }
 
     throw new Error(`Unknown data-loading action "${action}"`);
