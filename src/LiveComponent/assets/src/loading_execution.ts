@@ -7,11 +7,10 @@ import {
 } from './dom_utils';
 import LoadingAction from './LoadingAction';
 
-export function getLoadingActionCallable(loadingAction: LoadingAction): () => void {
-    const loadingActionName = parseLoadingAction(loadingAction.actionName, false);
-    console.log(loadingActionName, loadingAction.actionName);
+export function getLoadingActionCallable(element: HTMLElement|SVGElement, action: string, args: string[]): () => void {
+    const loadingActionName = parseLoadingAction(action, false);
 
-    return getLoadingCallable(loadingActionName, loadingAction.element, loadingAction.arg);
+    return getLoadingCallable(loadingActionName, element, args);
 }
 
 export function getReverseActionCallable(loadingAction: LoadingAction): () => void {
@@ -40,7 +39,7 @@ const parseLoadingAction = function(action: string, isReversed: boolean): string
     throw new Error(`Unknown data-loading action "${action}"`);
 }
 
-const getLoadingCallable = function(finalAction: string, element: HTMLElement|SVGElement, arg: string): () => void {
+const getLoadingCallable = function(finalAction: string, element: HTMLElement|SVGElement, args: string[]): () => void {
     switch (finalAction) {
         case 'show':
             return () => {
@@ -53,16 +52,16 @@ const getLoadingCallable = function(finalAction: string, element: HTMLElement|SV
             };
 
         case 'addClass':
-            return () => addClass(element, [arg]);
+            return () => addClass(element, args);
 
         case 'removeClass':
-            return () => removeClass(element, [arg]);
+            return () => removeClass(element, args);
 
         case 'addAttribute':
-            return () => addAttributes(element, [arg]);
+            return () => addAttributes(element, args);
 
         case 'removeAttribute':
-            return () => removeAttributes(element, [arg]);
+            return () => removeAttributes(element, args);
 
         default:
             throw new Error(`Unknown data-loading action "${finalAction}"`);

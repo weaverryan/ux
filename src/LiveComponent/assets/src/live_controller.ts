@@ -16,8 +16,7 @@ import {
 import UnsyncedInputContainer from './UnsyncedInputContainer';
 import BackendRequest from './BackendRequest';
 import LoadingCoordinator from './LoadingCoordinator';
-import LoadingAction from './LoadingAction';
-import { getReverseActionCallable } from './loading_execution';
+import LoadingActionsCalculator from "./LoadingActionsCalculator";
 
 interface ElementLoadingDirectives {
     element: HTMLElement|SVGElement,
@@ -117,7 +116,7 @@ export default class extends Controller implements LiveController {
     connect() {
         // hide "loading" elements to begin with
         // This is done with CSS, but only for the most basic cases
-        this.#initiateNonLoadingState();
+        this.#triggerLoadingDirectives(null);
 
         // helps typescript be sure this is an HTMLElement, not just Element
         if (!(this.element instanceof HTMLElement)) {
@@ -473,21 +472,11 @@ export default class extends Controller implements LiveController {
         const backendRequest = new BackendRequest(
             thisPromise,
             this.unsyncedInputs.clone(),
-            this.#getLoadingActions(action),
             action
         );
+        this.#triggerLoadingDirectives(backendRequest);
         this.backendRequestStack.addRequest(backendRequest);
-        this.loadingCoordinator.backendRequestStarted(backendRequest);
         thisPromise.then((response) => {
-            // TODO: should some of this be moved into the BackendRequest?
-            // including, potentially, loading stuff?
-
-            // remove the loading behavior now so that when we morphdom
-            // "diffs" the elements, any loading differences will not cause
-            // elements to appear different unnecessarily
-            // this should happen even if this request's render is ultimately not used
-            this.loadingCoordinator.backendRequestFinished(backendRequest);
-
             if (action) {
                 this.isActionProcessing = false;
             }
@@ -502,6 +491,9 @@ export default class extends Controller implements LiveController {
                 response.text().then((html) => {
                     this._processRerender(html, response, backendRequest.unsyncedInputContainer);
                 });
+            } else {
+                // if we're skipping the render, reset loading states
+                this.#triggerLoadingDirectives(null);
             }
         })
     }
@@ -561,55 +553,31 @@ export default class extends Controller implements LiveController {
         }
     }
 
-    #getLoadingActions(actionName: string|null): Array<LoadingAction> {
-        const loadingActions: Array<LoadingAction> = [];
-
+    /**
+     * Triggers the loading directives for *all* currently-active requests.
+     *
+     * This can be used on fresh HTML (like from the server) to reinitialize
+     * the loading states for all currently-active backend requests. Additionally,
+     * when a new request is made, this can trigger the *new* loading state
+     * for just that request, taking into account any "delay" behavior.
+     *
+     * @param newBackendRequest If a new request *just* started, pass it here.
+     */
+    #triggerLoadingDirectives(newBackendRequest: BackendRequest|null): void {
+        const calculator = new LoadingActionsCalculator(this.backendRequestStack.all(), newBackendRequest);
         this._getLoadingDirectives().forEach(({ element, directives }) => {
-            // loop over each directive e.g. addClass(foo, bar)
             directives.forEach((directive) => {
-                let delay = 0;
-                const targetedActions: string[] = [];
-
-                directive.modifiers.forEach((modifier => {
-                    switch (modifier.name) {
-                        case 'delay': {
-                            delay = modifier.value ? parseInt(modifier.value) : 200;
-
-                            break;
-                        }
-
-                        case 'action':
-                            if (!modifier.value) {
-                                throw new Error(`The "action" in data-loading must have an action name - e.g. action(foo). It's missing for ${directive.getString()}`)
-                            }
-                            targetedActions.push(modifier.value);
-                            break;
-
-                        default:
-                            throw new Error(`Unknown modifier ${modifier.name} used in the loading directive ${directive.getString()}`)
-                    }
-                }));
-
-                // skip if the loading is for a specific action that is not this action
-                if (targetedActions.length > 0 && (!actionName || !targetedActions.includes(actionName))) {
-                    return;
-                }
-
-                // each argument (e.g. "foo" then "bar" in addClass(foo, bar)) is processed individually
-                if (directive.args.length > 0) {
-                    directive.args.forEach((arg) => {
-                        loadingActions.push(new LoadingAction(element, directive.action, arg, delay));
-                    });
-                } else {
-                    loadingActions.push(new LoadingAction(element, directive.action, '', delay));
-                }
+                calculator.addLoadingDirective(element, directive);
             });
-        });
+        })
 
-        return loadingActions;
+        const instructionsList = calculator.calculateInstructions();
+        instructionsList.forEach((instructions) => {
+            instructions.execute();
+        });
     }
 
-    _getLoadingDirectives() {
+    _getLoadingDirectives(): ElementLoadingDirectives[] {
         const loadingDirectives: ElementLoadingDirectives[] = [];
 
         this.element.querySelectorAll('[data-loading]').forEach((element => {
@@ -983,29 +951,6 @@ export default class extends Controller implements LiveController {
             clearInterval(interval);
         });
     }
-
-    /**
-     * Finds all data-loading="" elements & switches them to "not loading" state.
-     *
-     * This is called when a component initializes, most importantly so that
-     * elements that should only show when loading are hidden.
-     */
-    #initiateNonLoadingState() {
-        this._getLoadingDirectives().forEach(({ element, directives }) => {
-            directives.forEach((directive) => {
-                // each argument (e.g. "foo" then "bar" in addClass(foo, bar)) is processed individually
-                if (directive.args.length > 0) {
-                    directive.args.forEach((arg) => {
-                        const loadingAction = new LoadingAction(element, directive.action, arg, 0);
-                        (getReverseActionCallable(loadingAction))();
-                    });
-                } else {
-                    const loadingAction = new LoadingAction(element, directive.action, '', 0);
-                    (getReverseActionCallable(loadingAction))();
-                }
-            });
-        });
-    }
 }
 
 /**
@@ -1053,6 +998,10 @@ class BackendRequestStack {
         this.stack.forEach((reRenderPromise) => {
             reRenderPromise.addModifiedElement(element, modelName);
         });
+    }
+
+    all(): BackendRequest[] {
+        return this.stack;
     }
 }
 
