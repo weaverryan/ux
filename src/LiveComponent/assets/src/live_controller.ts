@@ -457,7 +457,7 @@ export default class extends Controller implements LiveController {
         this._onLoadingStart();
         const paramsString = params.toString();
         const thisPromise = fetch(`${url}${paramsString.length > 0 ? `?${paramsString}` : ''}`, fetchOptions);
-        this.backendRequest = new BackendRequest(thisPromise);
+        this.backendRequest = new BackendRequest(thisPromise, actions.map(action => action.name));
         thisPromise.then((response) => {
             response.text().then((html) => {
                 this.#processRerender(html, response);
@@ -525,12 +525,13 @@ export default class extends Controller implements LiveController {
         this._handleLoadingToggle(true);
     }
 
-    _onLoadingFinish() {
-        this._handleLoadingToggle(false);
+    _onLoadingFinish(targetElement: HTMLElement|SVGElement|null = null) {
+        this._handleLoadingToggle(false, targetElement);
     }
 
-    _handleLoadingToggle(isLoading: boolean) {
-        this._getLoadingDirectives().forEach(({ element, directives }) => {
+    _handleLoadingToggle(isLoading: boolean, targetElement: HTMLElement|SVGElement|null = null) {
+
+        this._getLoadingDirectives(targetElement).forEach(({ element, directives }) => {
             // so we can track, at any point, if an element is in a "loading" state
             if (isLoading) {
                 this._addAttributes(element, ['data-live-is-loading']);
@@ -549,6 +550,38 @@ export default class extends Controller implements LiveController {
      */
     _handleLoadingDirective(element: HTMLElement|SVGElement, isLoading: boolean, directive: Directive) {
         const finalAction = parseLoadingAction(directive.action, isLoading);
+
+        const targetedActions: string[] = [];
+        let delay = 0;
+        directive.modifiers.forEach((modifier => {
+            switch (modifier.name) {
+                case 'delay': {
+                    // if loading has *stopped*, the delay modifier has no effect
+                    if (!isLoading) {
+                        break;
+                    }
+
+                    delay = modifier.value ? parseInt(modifier.value) : 200;
+
+                    break;
+                }
+                case 'action': {
+                    if (!modifier.value) {
+                        throw new Error(`The "action" in data-loading must have an action name - e.g. action(foo). It's missing for ${directive.getString()}`);
+                    }
+                    targetedActions.push(modifier.value);
+                    break;
+                }
+
+                default:
+                    throw new Error(`Unknown modifier ${modifier.name} used in the loading directive ${directive.getString()}`)
+            }
+        }));
+
+        // if loading is being activated + action modifier, only apply if the action is on the request
+        if (isLoading && targetedActions.length > 0 && this.backendRequest && !this.backendRequest.containsOneOfActions(targetedActions)) {
+            return;
+        }
 
         let loadingDirective: (() => void);
 
@@ -583,41 +616,24 @@ export default class extends Controller implements LiveController {
                 throw new Error(`Unknown data-loading action "${finalAction}"`);
         }
 
-        let isHandled = false;
-        directive.modifiers.forEach((modifier => {
-            switch (modifier.name) {
-                case 'delay': {
-                    // if loading has *stopped*, the delay modifier has no effect
-                    if (!isLoading) {
-                        break;
-                    }
-
-                    const delayLength = modifier.value ? parseInt(modifier.value) : 200;
-                    window.setTimeout(() => {
-                        if (element.hasAttribute('data-live-is-loading')) {
-                            loadingDirective();
-                        }
-                    }, delayLength);
-
-                    isHandled = true;
-
-                    break;
+        if (delay) {
+            window.setTimeout(() => {
+                if (this.isRequestActive()) {
+                    loadingDirective();
                 }
-                default:
-                    throw new Error(`Unknown modifier ${modifier.name} used in the loading directive ${directive.getString()}`)
-            }
-        }));
+            }, delay);
 
-        // execute the loading directive
-        if (!isHandled) {
-            loadingDirective();
+            return;
         }
+
+        loadingDirective();
     }
 
-    _getLoadingDirectives() {
+    _getLoadingDirectives(targetElement: HTMLElement|SVGElement|null = null) {
         const loadingDirectives: ElementLoadingDirectives[] = [];
+        const element = targetElement || this.element;
 
-        this.element.querySelectorAll('[data-loading]').forEach((element => {
+        element.querySelectorAll('[data-loading]').forEach((element => {
             if (!(element instanceof HTMLElement) && !(element instanceof SVGElement)) {
                 throw new Error('Invalid Element Type');
             }
@@ -676,6 +692,8 @@ export default class extends Controller implements LiveController {
 
     _executeMorphdom(newHtml: string, modifiedElements: Array<HTMLElement>) {
         const newElement = htmlToElement(newHtml);
+        // make sure everything is in non-loading state, the same as the HTML currently on the page
+        this._onLoadingFinish(newElement);
         morphdom(this.element, newElement, {
             getNodeKey: (node: Node) => {
               if (!(node instanceof HTMLElement)) {
@@ -721,11 +739,7 @@ export default class extends Controller implements LiveController {
                 }
 
                 // look for data-live-ignore, and don't update
-                if (fromEl.hasAttribute('data-live-ignore')) {
-                    return false;
-                }
-
-                return true;
+                return !fromEl.hasAttribute('data-live-ignore');
             },
 
             onBeforeNodeDiscarded(node) {
@@ -734,10 +748,7 @@ export default class extends Controller implements LiveController {
                     return true;
                 }
 
-                if (node.hasAttribute('data-live-ignore')) {
-                    return false;
-                }
-                return true;
+                return !node.hasAttribute('data-live-ignore');
             }
         });
         // restore the data-original-data attribute
@@ -1025,13 +1036,26 @@ export default class extends Controller implements LiveController {
             this.requestDebounceTimeout = null;
         }
     }
+
+    private isRequestActive(): boolean {
+        return !!this.backendRequest;
+    }
 }
 
 class BackendRequest {
     promise: Promise<any>;
+    actions: string[];
 
-    constructor(promise: Promise<any>) {
+    constructor(promise: Promise<any>, actions: string[]) {
         this.promise = promise;
+        this.actions = actions;
+    }
+
+    /**
+     * Does this BackendRequest contain at least on action in targetedActions?
+     */
+    containsOneOfActions(targetedActions: string[]) {
+        return (this.actions.filter(action => targetedActions.includes(action))).length > 0;
     }
 }
 

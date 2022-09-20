@@ -460,6 +460,19 @@ changes until loading has taken longer than a certain amount of time:
     <!-- Show after 500ms of loading -->
     <div data-loading="delay(500)|show">Loading</div>
 
+Targeting Loading for a Specific Action
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To only toggle the loading behavior when a specific action is triggered,
+use the ``action()`` modifier with the name of the action - e.g. ``saveForm()``:
+
+.. code-block:: twig
+
+    <!-- show only when the "saveForm" action is triggering -->
+    <span data-loading="action(saveForm)|show">Loading</span>
+    <!-- multiple modifiers -->
+    <div data-loading="action(saveForm)|delay|addClass(opacity-50)">...</div>
+
 .. _actions:
 
 Actions
