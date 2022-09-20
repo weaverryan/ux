@@ -1,6 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import morphdom from 'morphdom';
-import { parseDirectives, Directive } from './directives_parser';
+import { parseDirectives, Directive, DirectiveModifier } from './directives_parser';
 import { combineSpacedArray, normalizeModelName } from './string_utils';
 import { haveRenderedValuesChanged } from './have_rendered_values_changed';
 import { normalizeAttributesForComparison } from './normalize_attributes_for_comparison';
@@ -161,36 +161,40 @@ export default class extends Controller implements LiveController {
             });
 
             let handled = false;
-            directive.modifiers.forEach((modifier) => {
-                switch (modifier.name) {
-                    case 'prevent':
-                        event.preventDefault();
-                        break;
-                    case 'stop':
-                        event.stopPropagation();
-                        break;
-                    case 'self':
-                        if (event.target !== event.currentTarget) {
-                            return;
-                        }
-                        break;
-                    case 'debounce': {
-                        const length: number = modifier.value ? parseInt(modifier.value) : this.getDefaultDebounce();
-
-                        this.#clearRequestDebounceTimeout();
-                        this.requestDebounceTimeout = window.setTimeout(() => {
-                            this.requestDebounceTimeout = null;
-                            this.#startPendingRequest();
-                        }, length);
-
-                        handled = true;
-
-                        break;
-                    }
-
-                    default:
-                        console.warn(`Unknown modifier ${modifier.name} in action ${rawAction}`);
+            const validModifiers: Map<string, (modifier: DirectiveModifier) => void> = new Map();
+            validModifiers.set('prevent', () => {
+                event.preventDefault();
+            });
+            validModifiers.set('stop', () => {
+                    event.stopPropagation();
+            });
+            validModifiers.set('self', () => {
+                if (event.target !== event.currentTarget) {
+                    return;
                 }
+            });
+            validModifiers.set('debounce', (modifier: DirectiveModifier) => {
+                const length: number = modifier.value ? parseInt(modifier.value) : this.getDefaultDebounce();
+
+                this.#clearRequestDebounceTimeout();
+                this.requestDebounceTimeout = window.setTimeout(() => {
+                    this.requestDebounceTimeout = null;
+                    this.#startPendingRequest();
+                }, length);
+
+                handled = true;
+            });
+
+            directive.modifiers.forEach((modifier) => {
+                if (validModifiers.has(modifier.name)) {
+                    // variable is entirely to make ts happy
+                    const callable = validModifiers.get(modifier.name) ?? (() => {});
+                    callable(modifier);
+
+                    return;
+                }
+
+                console.warn(`Unknown modifier ${modifier.name} in action "${rawAction}". Available modifiers are ${Array.from(validModifiers.keys()).join(', ')}`);
             });
 
             if (!handled) {
@@ -454,10 +458,10 @@ export default class extends Controller implements LiveController {
             fetchOptions.body = JSON.stringify(requestData);
         }
 
-        this._onLoadingStart();
         const paramsString = params.toString();
         const thisPromise = fetch(`${url}${paramsString.length > 0 ? `?${paramsString}` : ''}`, fetchOptions);
         this.backendRequest = new BackendRequest(thisPromise, actions.map(action => action.name));
+        this._onLoadingStart();
         thisPromise.then((response) => {
             response.text().then((html) => {
                 this.#processRerender(html, response);
@@ -530,6 +534,11 @@ export default class extends Controller implements LiveController {
     }
 
     _handleLoadingToggle(isLoading: boolean, targetElement: HTMLElement|SVGElement|null = null) {
+        if (isLoading) {
+            this._addAttributes(this.element, ['busy']);
+        } else {
+            this._removeAttributes(this.element, ['busy']);
+        }
 
         this._getLoadingDirectives(targetElement).forEach(({ element, directives }) => {
             // so we can track, at any point, if an element is in a "loading" state

@@ -1018,6 +1018,7 @@ function setDeepData(data, propertyPath, value) {
 
 class ValueStore {
     constructor(liveController) {
+        this.updatedModels = [];
         this.controller = liveController;
     }
     get(name) {
@@ -1029,6 +1030,7 @@ class ValueStore {
     }
     set(name, value) {
         const normalizedName = normalizeModelName(name);
+        this.updatedModels.push(normalizedName);
         this.controller.dataValue = setDeepData(this.controller.dataValue, normalizedName, value);
     }
     hasAtTopLevel(name) {
@@ -1037,6 +1039,9 @@ class ValueStore {
     }
     asJson() {
         return JSON.stringify(this.controller.dataValue);
+    }
+    all() {
+        return this.controller.dataValue;
     }
 }
 
@@ -1172,12 +1177,6 @@ class UnsyncedInputContainer {
     all() {
         return [...__classPrivateFieldGet(this, _UnsyncedInputContainer_unmappedFields, "f"), ...__classPrivateFieldGet(this, _UnsyncedInputContainer_mappedFields, "f").values()];
     }
-    clone() {
-        const container = new UnsyncedInputContainer();
-        __classPrivateFieldSet(container, _UnsyncedInputContainer_mappedFields, new Map(__classPrivateFieldGet(this, _UnsyncedInputContainer_mappedFields, "f")), "f");
-        __classPrivateFieldSet(container, _UnsyncedInputContainer_unmappedFields, [...__classPrivateFieldGet(this, _UnsyncedInputContainer_unmappedFields, "f")], "f");
-        return container;
-    }
     allMappedFields() {
         return __classPrivateFieldGet(this, _UnsyncedInputContainer_mappedFields, "f");
     }
@@ -1187,15 +1186,15 @@ class UnsyncedInputContainer {
 }
 _UnsyncedInputContainer_mappedFields = new WeakMap(), _UnsyncedInputContainer_unmappedFields = new WeakMap();
 
-var _PromiseStack_instances, _PromiseStack_findPromiseIndex;
+var _instances, _startPendingRequest, _makeRequest, _processRerender, _clearRequestDebounceTimeout;
 const DEFAULT_DEBOUNCE = 150;
 class default_1 extends Controller {
     constructor() {
         super(...arguments);
-        this.renderDebounceTimeout = null;
-        this.actionDebounceTimeout = null;
-        this.renderPromiseStack = new PromiseStack();
-        this.isActionProcessing = false;
+        _instances.add(this);
+        this.pendingActions = [];
+        this.isRerenderRequested = false;
+        this.requestDebounceTimeout = null;
         this.pollingIntervals = [];
         this.isWindowUnloaded = false;
         this.originalDataJSON = '{}';
@@ -1234,6 +1233,7 @@ class default_1 extends Controller {
     }
     disconnect() {
         this._stopAllPolling();
+        __classPrivateFieldGet(this, _instances, "m", _clearRequestDebounceTimeout).call(this);
         window.removeEventListener('beforeunload', this.markAsWindowUnloaded);
         this.element.removeEventListener('live:update-model', this.handleUpdateModelEvent);
         this.element.removeEventListener('input', this.handleInputEvent);
@@ -1255,56 +1255,58 @@ class default_1 extends Controller {
         const rawAction = event.currentTarget.dataset.actionName;
         const directives = parseDirectives(rawAction);
         directives.forEach((directive) => {
-            const _executeAction = () => {
-                this._clearWaitingDebouncedRenders();
-                this._makeRequest(directive.action, directive.named);
-            };
+            this.pendingActions.push({
+                name: directive.action,
+                args: directive.named
+            });
             let handled = false;
-            directive.modifiers.forEach((modifier) => {
-                switch (modifier.name) {
-                    case 'prevent':
-                        event.preventDefault();
-                        break;
-                    case 'stop':
-                        event.stopPropagation();
-                        break;
-                    case 'self':
-                        if (event.target !== event.currentTarget) {
-                            return;
-                        }
-                        break;
-                    case 'debounce': {
-                        const length = modifier.value ? parseInt(modifier.value) : this.getDefaultDebounce();
-                        if (this.actionDebounceTimeout) {
-                            clearTimeout(this.actionDebounceTimeout);
-                            this.actionDebounceTimeout = null;
-                        }
-                        this.actionDebounceTimeout = window.setTimeout(() => {
-                            this.actionDebounceTimeout = null;
-                            _executeAction();
-                        }, length);
-                        handled = true;
-                        break;
-                    }
-                    default:
-                        console.warn(`Unknown modifier ${modifier.name} in action ${rawAction}`);
+            const validModifiers = new Map();
+            validModifiers.set('prevent', () => {
+                event.preventDefault();
+            });
+            validModifiers.set('stop', () => {
+                event.stopPropagation();
+            });
+            validModifiers.set('self', () => {
+                if (event.target !== event.currentTarget) {
+                    return;
                 }
+            });
+            validModifiers.set('debounce', (modifier) => {
+                const length = modifier.value ? parseInt(modifier.value) : this.getDefaultDebounce();
+                __classPrivateFieldGet(this, _instances, "m", _clearRequestDebounceTimeout).call(this);
+                this.requestDebounceTimeout = window.setTimeout(() => {
+                    this.requestDebounceTimeout = null;
+                    __classPrivateFieldGet(this, _instances, "m", _startPendingRequest).call(this);
+                }, length);
+                handled = true;
+            });
+            directive.modifiers.forEach((modifier) => {
+                var _a;
+                if (validModifiers.has(modifier.name)) {
+                    const callable = (_a = validModifiers.get(modifier.name)) !== null && _a !== void 0 ? _a : (() => { });
+                    callable(modifier);
+                    return;
+                }
+                console.warn(`Unknown modifier ${modifier.name} in action "${rawAction}". Available modifiers are ${Array.from(validModifiers.keys()).join(', ')}`);
             });
             if (!handled) {
                 if (getModelDirectiveFromInput(event.currentTarget, false)) {
                     this.pendingActionTriggerModelElement = event.currentTarget;
+                    __classPrivateFieldGet(this, _instances, "m", _clearRequestDebounceTimeout).call(this);
                     window.setTimeout(() => {
                         this.pendingActionTriggerModelElement = null;
-                        _executeAction();
+                        __classPrivateFieldGet(this, _instances, "m", _startPendingRequest).call(this);
                     }, 10);
                     return;
                 }
-                _executeAction();
+                __classPrivateFieldGet(this, _instances, "m", _startPendingRequest).call(this);
             }
         });
     }
     $render() {
-        this._makeRequest(null, {});
+        this.isRerenderRequested = true;
+        __classPrivateFieldGet(this, _instances, "m", _startPendingRequest).call(this);
     }
     _updateModelFromElement(element, eventName) {
         if (!elementBelongsToThisController(element, this)) {
@@ -1316,7 +1318,6 @@ class default_1 extends Controller {
         const modelDirective = getModelDirectiveFromInput(element, false);
         if (eventName === 'input') {
             const modelName = modelDirective ? modelDirective.action : null;
-            this.renderPromiseStack.addModifiedElement(element, modelName);
             this.unsyncedInputs.add(element, modelName);
         }
         if (!modelDirective) {
@@ -1383,114 +1384,33 @@ class default_1 extends Controller {
             });
         }
         this.valueStore.set(modelName, value);
-        this.unsyncedInputs.remove(modelName);
-        if (shouldRender && !this.isActionProcessing) {
-            this._clearWaitingDebouncedRenders();
+        if (shouldRender) {
             let debounce = this.getDefaultDebounce();
             if (options.debounce !== undefined && options.debounce !== null) {
                 debounce = options.debounce;
             }
-            this.renderDebounceTimeout = window.setTimeout(() => {
-                this.renderDebounceTimeout = null;
-                this.$render();
+            __classPrivateFieldGet(this, _instances, "m", _clearRequestDebounceTimeout).call(this);
+            this.requestDebounceTimeout = window.setTimeout(() => {
+                this.requestDebounceTimeout = null;
+                this.isRerenderRequested = true;
+                __classPrivateFieldGet(this, _instances, "m", _startPendingRequest).call(this);
             }, debounce);
-        }
-    }
-    _makeRequest(action, args) {
-        const splitUrl = this.urlValue.split('?');
-        let [url] = splitUrl;
-        const [, queryString] = splitUrl;
-        const params = new URLSearchParams(queryString || '');
-        if (typeof args === 'object' && Object.keys(args).length > 0) {
-            params.set('args', new URLSearchParams(args).toString());
-        }
-        const fetchOptions = {};
-        fetchOptions.headers = {
-            'Accept': 'application/vnd.live-component+html',
-        };
-        if (action) {
-            this.isActionProcessing = true;
-            url += `/${encodeURIComponent(action)}`;
-            if (this.csrfValue) {
-                fetchOptions.headers['X-CSRF-TOKEN'] = this.csrfValue;
-            }
-        }
-        let dataAdded = false;
-        if (!action) {
-            const dataJson = this.valueStore.asJson();
-            if (this._willDataFitInUrl(dataJson, params)) {
-                params.set('data', dataJson);
-                fetchOptions.method = 'GET';
-                dataAdded = true;
-            }
-        }
-        if (!dataAdded) {
-            fetchOptions.method = 'POST';
-            fetchOptions.body = this.valueStore.asJson();
-            fetchOptions.headers['Content-Type'] = 'application/json';
-        }
-        this._onLoadingStart();
-        const paramsString = params.toString();
-        const thisPromise = fetch(`${url}${paramsString.length > 0 ? `?${paramsString}` : ''}`, fetchOptions);
-        const reRenderPromise = new ReRenderPromise(thisPromise, this.unsyncedInputs.clone());
-        this.renderPromiseStack.addPromise(reRenderPromise);
-        thisPromise.then((response) => {
-            if (action) {
-                this.isActionProcessing = false;
-            }
-            if (this.renderDebounceTimeout) {
-                return;
-            }
-            const isMostRecent = this.renderPromiseStack.removePromise(thisPromise);
-            if (isMostRecent) {
-                response.text().then((html) => {
-                    this._processRerender(html, response, reRenderPromise.unsyncedInputContainer);
-                });
-            }
-        });
-    }
-    _processRerender(html, response, unsyncedInputContainer) {
-        if (this.isWindowUnloaded) {
-            return;
-        }
-        if (response.headers.get('Location')) {
-            if (typeof Turbo !== 'undefined') {
-                Turbo.visit(response.headers.get('Location'));
-            }
-            else {
-                window.location.href = response.headers.get('Location') || '';
-            }
-            return;
-        }
-        if (!this._dispatchEvent('live:render', html, true, true)) {
-            return;
-        }
-        this._onLoadingFinish();
-        const modifiedModelValues = {};
-        if (unsyncedInputContainer.allMappedFields().size > 0) {
-            for (const [modelName] of unsyncedInputContainer.allMappedFields()) {
-                modifiedModelValues[modelName] = this.valueStore.get(modelName);
-            }
-        }
-        this._executeMorphdom(html, unsyncedInputContainer.all());
-        Object.keys(modifiedModelValues).forEach((modelName) => {
-            this.valueStore.set(modelName, modifiedModelValues[modelName]);
-        });
-    }
-    _clearWaitingDebouncedRenders() {
-        if (this.renderDebounceTimeout) {
-            clearTimeout(this.renderDebounceTimeout);
-            this.renderDebounceTimeout = null;
         }
     }
     _onLoadingStart() {
         this._handleLoadingToggle(true);
     }
-    _onLoadingFinish() {
-        this._handleLoadingToggle(false);
+    _onLoadingFinish(targetElement = null) {
+        this._handleLoadingToggle(false, targetElement);
     }
-    _handleLoadingToggle(isLoading) {
-        this._getLoadingDirectives().forEach(({ element, directives }) => {
+    _handleLoadingToggle(isLoading, targetElement = null) {
+        if (isLoading) {
+            this._addAttributes(this.element, ['busy']);
+        }
+        else {
+            this._removeAttributes(this.element, ['busy']);
+        }
+        this._getLoadingDirectives(targetElement).forEach(({ element, directives }) => {
             if (isLoading) {
                 this._addAttributes(element, ['data-live-is-loading']);
             }
@@ -1504,6 +1424,31 @@ class default_1 extends Controller {
     }
     _handleLoadingDirective(element, isLoading, directive) {
         const finalAction = parseLoadingAction(directive.action, isLoading);
+        const targetedActions = [];
+        let delay = 0;
+        directive.modifiers.forEach((modifier => {
+            switch (modifier.name) {
+                case 'delay': {
+                    if (!isLoading) {
+                        break;
+                    }
+                    delay = modifier.value ? parseInt(modifier.value) : 200;
+                    break;
+                }
+                case 'action': {
+                    if (!modifier.value) {
+                        throw new Error(`The "action" in data-loading must have an action name - e.g. action(foo). It's missing for ${directive.getString()}`);
+                    }
+                    targetedActions.push(modifier.value);
+                    break;
+                }
+                default:
+                    throw new Error(`Unknown modifier ${modifier.name} used in the loading directive ${directive.getString()}`);
+            }
+        }));
+        if (isLoading && targetedActions.length > 0 && this.backendRequest && !this.backendRequest.containsOneOfActions(targetedActions)) {
+            return;
+        }
         let loadingDirective;
         switch (finalAction) {
             case 'show':
@@ -1529,33 +1474,20 @@ class default_1 extends Controller {
             default:
                 throw new Error(`Unknown data-loading action "${finalAction}"`);
         }
-        let isHandled = false;
-        directive.modifiers.forEach((modifier => {
-            switch (modifier.name) {
-                case 'delay': {
-                    if (!isLoading) {
-                        break;
-                    }
-                    const delayLength = modifier.value ? parseInt(modifier.value) : 200;
-                    window.setTimeout(() => {
-                        if (element.hasAttribute('data-live-is-loading')) {
-                            loadingDirective();
-                        }
-                    }, delayLength);
-                    isHandled = true;
-                    break;
+        if (delay) {
+            window.setTimeout(() => {
+                if (this.isRequestActive()) {
+                    loadingDirective();
                 }
-                default:
-                    throw new Error(`Unknown modifier ${modifier.name} used in the loading directive ${directive.getString()}`);
-            }
-        }));
-        if (!isHandled) {
-            loadingDirective();
+            }, delay);
+            return;
         }
+        loadingDirective();
     }
-    _getLoadingDirectives() {
+    _getLoadingDirectives(targetElement = null) {
         const loadingDirectives = [];
-        this.element.querySelectorAll('[data-loading]').forEach((element => {
+        const element = targetElement || this.element;
+        element.querySelectorAll('[data-loading]').forEach((element => {
             if (!(element instanceof HTMLElement) && !(element instanceof SVGElement)) {
                 throw new Error('Invalid Element Type');
             }
@@ -1598,6 +1530,7 @@ class default_1 extends Controller {
     }
     _executeMorphdom(newHtml, modifiedElements) {
         const newElement = htmlToElement(newHtml);
+        this._onLoadingFinish(newElement);
         morphdom(this.element, newElement, {
             getNodeKey: (node) => {
                 if (!(node instanceof HTMLElement)) {
@@ -1628,19 +1561,13 @@ class default_1 extends Controller {
                     && !this._shouldChildLiveElementUpdate(fromEl, toEl)) {
                     return false;
                 }
-                if (fromEl.hasAttribute('data-live-ignore')) {
-                    return false;
-                }
-                return true;
+                return !fromEl.hasAttribute('data-live-ignore');
             },
             onBeforeNodeDiscarded(node) {
                 if (!(node instanceof HTMLElement)) {
                     return true;
                 }
-                if (node.hasAttribute('data-live-ignore')) {
-                    return false;
-                }
-                return true;
+                return !node.hasAttribute('data-live-ignore');
             }
         });
         this._exposeOriginalData();
@@ -1713,13 +1640,11 @@ class default_1 extends Controller {
         }
         else {
             callback = () => {
-                this._makeRequest(actionName, {});
+                this.pendingActions.push({ name: actionName, args: {} });
+                __classPrivateFieldGet(this, _instances, "m", _startPendingRequest).call(this);
             };
         }
         const timer = setInterval(() => {
-            if (this.renderPromiseStack.countActivePromises() > 0) {
-                return;
-            }
             callback();
         }, duration);
         this.pollingIntervals.push(timer);
@@ -1832,49 +1757,123 @@ class default_1 extends Controller {
             clearInterval(interval);
         });
     }
+    isRequestActive() {
+        return !!this.backendRequest;
+    }
 }
+_instances = new WeakSet(), _startPendingRequest = function _startPendingRequest() {
+    if (!this.backendRequest && (this.pendingActions.length > 0 || this.isRerenderRequested)) {
+        __classPrivateFieldGet(this, _instances, "m", _makeRequest).call(this);
+    }
+}, _makeRequest = function _makeRequest() {
+    const splitUrl = this.urlValue.split('?');
+    let [url] = splitUrl;
+    const [, queryString] = splitUrl;
+    const params = new URLSearchParams(queryString || '');
+    const actions = this.pendingActions;
+    this.pendingActions = [];
+    this.isRerenderRequested = false;
+    __classPrivateFieldGet(this, _instances, "m", _clearRequestDebounceTimeout).call(this);
+    this.unsyncedInputs.allMappedFields().forEach((element, modelName) => {
+        if (getValueFromInput(element, this.valueStore) === this.valueStore.get(modelName)) {
+            this.unsyncedInputs.remove(modelName);
+        }
+    });
+    const fetchOptions = {};
+    fetchOptions.headers = {
+        'Accept': 'application/vnd.live-component+html',
+    };
+    const updatedModels = this.includeUpdatedModelsValue ? this.valueStore.updatedModels : false;
+    this.valueStore.updatedModels = [];
+    if (actions.length === 0 && this._willDataFitInUrl(this.valueStore.asJson(), params)) {
+        params.set('data', this.valueStore.asJson());
+        if (updatedModels) {
+            updatedModels.forEach((model) => {
+                params.append('updatedModels[]', model);
+            });
+        }
+        fetchOptions.method = 'GET';
+    }
+    else {
+        fetchOptions.method = 'POST';
+        fetchOptions.headers['Content-Type'] = 'application/json';
+        const requestData = { data: this.valueStore.all() };
+        if (updatedModels) {
+            requestData.updatedModels = updatedModels;
+        }
+        if (actions.length > 0) {
+            if (this.csrfValue) {
+                fetchOptions.headers['X-CSRF-TOKEN'] = this.csrfValue;
+            }
+            if (actions.length === 1) {
+                requestData.args = actions[0].args;
+                url += `/${encodeURIComponent(actions[0].name)}`;
+            }
+            else {
+                url += '/_batch';
+                requestData.actions = actions;
+            }
+        }
+        fetchOptions.body = JSON.stringify(requestData);
+    }
+    const paramsString = params.toString();
+    const thisPromise = fetch(`${url}${paramsString.length > 0 ? `?${paramsString}` : ''}`, fetchOptions);
+    this.backendRequest = new BackendRequest(thisPromise, actions.map(action => action.name));
+    this._onLoadingStart();
+    thisPromise.then((response) => {
+        response.text().then((html) => {
+            __classPrivateFieldGet(this, _instances, "m", _processRerender).call(this, html, response);
+            this.backendRequest = null;
+            __classPrivateFieldGet(this, _instances, "m", _startPendingRequest).call(this);
+        });
+    });
+}, _processRerender = function _processRerender(html, response) {
+    if (this.isWindowUnloaded) {
+        return;
+    }
+    if (response.headers.get('Location')) {
+        if (typeof Turbo !== 'undefined') {
+            Turbo.visit(response.headers.get('Location'));
+        }
+        else {
+            window.location.href = response.headers.get('Location') || '';
+        }
+        return;
+    }
+    this._onLoadingFinish();
+    if (!this._dispatchEvent('live:render', html, true, true)) {
+        return;
+    }
+    const modifiedModelValues = {};
+    if (this.unsyncedInputs.allMappedFields().size > 0) {
+        for (const [modelName] of this.unsyncedInputs.allMappedFields()) {
+            modifiedModelValues[modelName] = this.valueStore.get(modelName);
+        }
+    }
+    this._executeMorphdom(html, this.unsyncedInputs.all());
+    Object.keys(modifiedModelValues).forEach((modelName) => {
+        this.valueStore.set(modelName, modifiedModelValues[modelName]);
+    });
+}, _clearRequestDebounceTimeout = function _clearRequestDebounceTimeout() {
+    if (this.requestDebounceTimeout) {
+        clearTimeout(this.requestDebounceTimeout);
+        this.requestDebounceTimeout = null;
+    }
+};
 default_1.values = {
     url: String,
     data: Object,
     csrf: String,
     debounce: Number,
+    includeUpdatedModels: Boolean,
 };
-class PromiseStack {
-    constructor() {
-        _PromiseStack_instances.add(this);
-        this.stack = [];
-    }
-    addPromise(reRenderPromise) {
-        this.stack.push(reRenderPromise);
-    }
-    removePromise(promise) {
-        const index = __classPrivateFieldGet(this, _PromiseStack_instances, "m", _PromiseStack_findPromiseIndex).call(this, promise);
-        if (index === -1) {
-            return false;
-        }
-        const isMostRecent = this.stack.length === (index + 1);
-        this.stack.splice(0, index + 1);
-        return isMostRecent;
-    }
-    countActivePromises() {
-        return this.stack.length;
-    }
-    addModifiedElement(element, modelName = null) {
-        this.stack.forEach((reRenderPromise) => {
-            reRenderPromise.addModifiedElement(element, modelName);
-        });
-    }
-}
-_PromiseStack_instances = new WeakSet(), _PromiseStack_findPromiseIndex = function _PromiseStack_findPromiseIndex(promise) {
-    return this.stack.findIndex((item) => item.promise === promise);
-};
-class ReRenderPromise {
-    constructor(promise, unsyncedInputContainer) {
+class BackendRequest {
+    constructor(promise, actions) {
         this.promise = promise;
-        this.unsyncedInputContainer = unsyncedInputContainer;
+        this.actions = actions;
     }
-    addModifiedElement(element, modelName = null) {
-        this.unsyncedInputContainer.add(element, modelName);
+    containsOneOfActions(targetedActions) {
+        return (this.actions.filter(action => targetedActions.includes(action))).length > 0;
     }
 }
 const parseLoadingAction = function (action, isLoading) {
