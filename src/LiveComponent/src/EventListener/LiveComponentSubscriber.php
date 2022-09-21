@@ -69,6 +69,11 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
             return;
         }
 
+        if ($request->attributes->has('_controller')) {
+            // is sub-request
+            return;
+        }
+
         // the default "action" is get, which does nothing
         $action = $request->get('action', 'get');
         $componentName = (string) $request->get('component');
@@ -118,17 +123,6 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
             return;
         }
 
-        $actionArguments = [];
-        if ($request->query->has('data')) {
-            // ?data=
-            $data = json_decode($request->query->get('data'), true, 512, \JSON_THROW_ON_ERROR);
-        } else {
-            // OR body of the request is JSON
-            $requestData = json_decode($request->getContent(), true, 512, \JSON_THROW_ON_ERROR);
-            $data = $requestData['data'] ?? [];
-            $actionArguments = $requestData['args'] ?? [];
-        }
-
         if (!\is_array($controller = $event->getController()) || 2 !== \count($controller)) {
             throw new \RuntimeException('Not a valid live component.');
         }
@@ -143,13 +137,9 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
             throw new NotFoundHttpException(sprintf('The action "%s" either doesn\'t exist or is not allowed in "%s". Make sure it exist and has the LiveAction attribute above it.', $action, \get_class($component)));
         }
 
-        $mounted = $this->container->get(LiveComponentHydrator::class)->hydrate(
-            $component,
-            $data,
-            $request->attributes->get('_component_name')
-        );
+        $this->mountComponent($component, $request);
 
-        $request->attributes->set('_mounted_component', $mounted);
+        $actionArguments = $request->attributes->get('_component_action_args', []);
 
         // extra variables to be made available to the controller
         // (for "actions" only)
@@ -235,5 +225,29 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
     private function isLiveComponentRequest(Request $request): bool
     {
         return 'live_component' === $request->attributes->get('_route');
+    }
+
+    private function mountComponent(object $component, Request $request): void
+    {
+        if ($request->attributes->has('_mounted_component')) {
+            // is sub-request
+            return;
+        }
+
+        if ($request->query->has('data')) {
+            // ?data=
+            $data = json_decode($request->query->get('data'), true, 512, \JSON_THROW_ON_ERROR);
+        } else {
+            // OR body of the request is JSON
+            $requestData = json_decode($request->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+            $data = $requestData['data'] ?? [];
+            $request->attributes->set('_component_action_args', $requestData['args'] ?? []);
+        }
+
+        $request->attributes->set('_mounted_component', $this->container->get(LiveComponentHydrator::class)->hydrate(
+            $component,
+            $data,
+            $request->attributes->get('_component_name')
+        ));
     }
 }
