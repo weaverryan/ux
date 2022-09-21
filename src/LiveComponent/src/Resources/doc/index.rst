@@ -391,6 +391,31 @@ live property on your component to the value ``edit``. The
 ``data-action="live#update"`` is Stimulus code that triggers
 the update.
 
+Updating a Field via Custom JavaScript
+--------------------------------------
+
+Sometimes you might want to change the value of a field via your own
+custom JavaScript. Suppose you have the following field inside your component:
+
+.. code-block:: twig
+
+    <input
+        id="favorite-food"
+        data-model="favoriteFood"
+        value="{{ favoriteFood }}"
+    >
+
+To set the value of this field via custom JavaScript (e.g. a Stimulus controller),
+be sure to *also* trigger a ``change`` event so that live components is notified
+of the change:
+
+.. code-block:: javascript
+
+    const input = document.getElementById('favorite-food');
+    input.value = 'sushi';
+
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+
 Loading States
 --------------
 
