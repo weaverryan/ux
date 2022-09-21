@@ -514,4 +514,27 @@ describe('LiveController data-model Tests', () => {
         await waitFor(() => expect(test.element).toHaveTextContent('First Name: Ryan'));
         await waitFor(() => expect(test.element).toHaveTextContent('Last Name: Weaver'));
     });
+
+    it('notices the "real" value of a select without an empty value', async () => {
+        const test = await createTest({ food: '' }, (data: any) => `
+            <div ${initComponent(data)}>
+                <select data-model="food">
+                    <option value="carrot">🥕</option>
+                    <option value="brocolli">🥦</option>
+                </select>
+
+                Food: ${data.food}
+
+                <button data-action="live#$render">Reload</button>
+            </div>
+        `);
+
+        // "carrot" is sent because, in practice, that's what's selected
+        test.expectsAjaxCall('get')
+            .expectSentData({ food: 'carrot' })
+            .init();
+
+        getByText(test.element, 'Reload').click();
+        await waitFor(() => expect(test.element).toHaveTextContent('Food: carrot'));
+    });
 });
