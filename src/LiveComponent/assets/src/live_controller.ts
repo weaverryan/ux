@@ -376,6 +376,9 @@ export default class extends Controller implements LiveController {
             }
 
             this.#clearRequestDebounceTimeout();
+            // debouncing even with a 0 value is enough to allow any other potential
+            // events happening right now (e.g. from custom user JavaScript) to
+            // finish setting other models before making the request.
             this.requestDebounceTimeout = window.setTimeout(() => {
                 this.requestDebounceTimeout = null;
                 this.isRerenderRequested = true;

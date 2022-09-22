@@ -10,7 +10,7 @@
 'use strict';
 
 import { createTest, initComponent, shutdownTest } from '../tools';
-import { getByLabelText, getByText, waitFor } from '@testing-library/dom';
+import { getByLabelText, getByTestId, getByText, waitFor } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 
 describe('LiveController data-model Tests', () => {
@@ -536,5 +536,49 @@ describe('LiveController data-model Tests', () => {
 
         getByText(test.element, 'Reload').click();
         await waitFor(() => expect(test.element).toHaveTextContent('Food: carrot'));
+    });
+
+    it('allows model fields to be set manually and rolled into a single request', async () => {
+        const test = await createTest({ food: '', dessert: '' }, (data: any) => `
+            <div ${initComponent(data)}>
+                <!-- using "change" because it has 0 debounce, which is the more -->
+                <!-- complex case for trying to get both model updates into 1 request -->
+                <select data-model="on(change)|food" data-testid="food-select">
+                    <option value="carrot">🥕</option>
+                    <option value="brocolli">🥦</option>
+                </select>
+
+                <select data-model="on(change)|dessert" data-testid="dessert-select">
+                    <option value="">choose a dessert</option>
+                    <option value="carrot_cake">carrot cake</option>
+                    <option value="ice_cream">ice creamoption>
+                </select>
+
+                Food: ${data.food}
+                Dessert: ${data.dessert}
+            </div>
+        `);
+
+        // just 1 request with both model changes
+        test.expectsAjaxCall('get')
+            .expectSentData({ food: 'carrot', dessert: 'carrot_cake' })
+            .init();
+
+        const foodSelect = getByTestId(test.element, 'food-select');
+
+        // when food changes, manually change the dessert
+        foodSelect.addEventListener('change', () => {
+            const dessertSelect = getByTestId(test.element, 'dessert-select');
+            if (!(dessertSelect instanceof HTMLSelectElement)) {
+                throw new Error('wrong element');
+            }
+            dessertSelect.value = 'carrot_cake';
+            dessertSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        await userEvent.selectOptions(foodSelect, 'carrot');
+
+        await waitFor(() => expect(test.element).toHaveTextContent('Food: carrot'));
+        expect(test.element).toHaveTextContent('Dessert: carrot_cake');
     });
 });
