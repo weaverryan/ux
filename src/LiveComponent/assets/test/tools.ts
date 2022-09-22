@@ -218,7 +218,7 @@ class MockedAjaxCall {
             requestInfo.push(`  DATA: ${JSON.stringify(this.getRequestBody())}`);
         }
         if (this.expectedActions.length === 1) {
-            requestInfo.push(`  Expected URL to contain action /${this.expectedActions[0]}`)
+            requestInfo.push(`  Expected URL to contain action /${this.expectedActions[0].name}`)
         }
 
         return requestInfo.join("\n");
