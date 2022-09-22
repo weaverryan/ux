@@ -1057,6 +1057,10 @@ export default class extends Controller implements LiveController {
                 throw new Error('Invalid element using data-model.');
             }
 
+            if (element instanceof HTMLFormElement) {
+                return;
+            }
+
             const modelDirective = getModelDirectiveFromElement(element);
             if (!modelDirective) {
                 return;
@@ -1065,6 +1069,12 @@ export default class extends Controller implements LiveController {
             const modelName = modelDirective.action;
             if (this.valueStore.has(modelName)) {
                 setValueOnElement(element, this.valueStore.get(modelName))
+            }
+
+            // for select elements without a blank value, one might be selected automatically
+            // https://github.com/symfony/ux/issues/469
+            if (element instanceof HTMLSelectElement && !element.multiple) {
+                this.valueStore.set(modelName, getValueFromElement(element, this.valueStore));
             }
         })
     }

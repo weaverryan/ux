@@ -8,7 +8,7 @@ import {
     setValueOnElement
 } from '../src/dom_utils';
 import ValueStore from '../src/ValueStore';
-import {LiveController} from '../src/live_controller';
+import { LiveController } from '../src/live_controller';
 
 const createStore = function(data: any = {}): ValueStore {
     return new ValueStore({
