@@ -421,7 +421,7 @@ export default class extends Controller implements LiveController {
         // if they ARE, then they are on longer "unsynced", which means that any
         // potential new values from the server *should* now be respected and used
         this.unsyncedInputs.allMappedFields().forEach((element, modelName) => {
-            if (getValueFromInput(element, this.valueStore) === this.valueStore.get(modelName)) {
+            if (getValueFromElement(element, this.valueStore) === this.valueStore.get(modelName)) {
                 this.unsyncedInputs.remove(modelName);
             }
         });
