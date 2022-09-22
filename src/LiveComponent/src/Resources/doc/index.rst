@@ -414,6 +414,9 @@ of the change:
     const input = document.getElementById('favorite-food');
     input.value = 'sushi';
 
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // if you have data-model="on(change)|favoriteFood", use the "change" event
     element.dispatchEvent(new Event('change', { bubbles: true }));
 
 Loading States
