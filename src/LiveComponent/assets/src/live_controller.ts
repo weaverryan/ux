@@ -5,7 +5,15 @@ import { combineSpacedArray, normalizeModelName } from './string_utils';
 import { haveRenderedValuesChanged } from './have_rendered_values_changed';
 import { normalizeAttributesForComparison } from './normalize_attributes_for_comparison';
 import ValueStore from './ValueStore';
-import { elementBelongsToThisController, getModelDirectiveFromInput, getValueFromInput, cloneHTMLElement, htmlToElement, getElementAsTagText } from './dom_utils';
+import {
+    elementBelongsToThisController,
+    getModelDirectiveFromElement,
+    getValueFromElement,
+    cloneHTMLElement,
+    htmlToElement,
+    getElementAsTagText,
+    setValueOnElement
+} from './dom_utils';
 import UnsyncedInputContainer from './UnsyncedInputContainer';
 
 interface ElementLoadingDirectives {
@@ -88,6 +96,7 @@ export default class extends Controller implements LiveController {
         this.originalDataJSON = this.valueStore.asJson();
         this.unsyncedInputs = new UnsyncedInputContainer();
         this._exposeOriginalData();
+        this.synchronizeValueOfModelFields();
     }
 
     connect() {
@@ -198,7 +207,7 @@ export default class extends Controller implements LiveController {
                 // if so, to be safe, slightly delay the action so that the
                 // change/input listener on LiveController can process the
                 // model change *before* sending the action
-                if (getModelDirectiveFromInput(event.currentTarget, false)) {
+                if (getModelDirectiveFromElement(event.currentTarget, false)) {
                     this.pendingActionTriggerModelElement = event.currentTarget;
                     this.#clearRequestDebounceTimeout();
                     window.setTimeout(() => {
@@ -234,7 +243,7 @@ export default class extends Controller implements LiveController {
             throw new Error('Could not update model for non HTMLElement');
         }
 
-        const modelDirective = getModelDirectiveFromInput(element, false);
+        const modelDirective = getModelDirectiveFromElement(element, false);
         if (eventName === 'input') {
             const modelName = modelDirective ? modelDirective.action : null;
             // track any inputs that are "unsynced"
@@ -300,7 +309,7 @@ export default class extends Controller implements LiveController {
             }
         }
 
-        const finalValue = getValueFromInput(element, this.valueStore);
+        const finalValue = getValueFromElement(element, this.valueStore);
 
         this.$updateModel(
             modelDirective.action,
@@ -522,6 +531,8 @@ export default class extends Controller implements LiveController {
         Object.keys(modifiedModelValues).forEach((modelName) => {
             this.valueStore.set(modelName, modifiedModelValues[modelName]);
         });
+
+        this.synchronizeValueOfModelFields();
     }
 
     _onLoadingStart() {
@@ -1027,6 +1038,35 @@ export default class extends Controller implements LiveController {
             clearTimeout(this.requestDebounceTimeout);
             this.requestDebounceTimeout = null;
         }
+    }
+
+    /**
+     * Sets the "value" of all model fields to the component data.
+     *
+     * This is called when the component initializes and after re-render.
+     * Take the following element:
+     *
+     *      <input data-model="firstName">
+     *
+     * This method will set the "value" of that element to the value of
+     * the "firstName" model.
+     */
+    private synchronizeValueOfModelFields(): void {
+        this.element.querySelectorAll('[data-model]').forEach((element) => {
+            if (!(element instanceof HTMLElement)) {
+                throw new Error('Invalid element using data-model.');
+            }
+
+            const modelDirective = getModelDirectiveFromElement(element);
+            if (!modelDirective) {
+                return;
+            }
+
+            const modelName = modelDirective.action;
+            if (this.valueStore.has(modelName)) {
+                setValueOnElement(element, this.valueStore.get(modelName))
+            }
+        })
     }
 }
 

@@ -581,4 +581,50 @@ describe('LiveController data-model Tests', () => {
         await waitFor(() => expect(test.element).toHaveTextContent('Food: carrot'));
         expect(test.element).toHaveTextContent('Dessert: carrot_cake');
     });
+
+    it('sets the value of data-model elements initially and after render', async () => {
+        const test = await createTest({ food: 'carrot', comment: 'mmmm' }, (data: any) => `
+            <div ${initComponent(data)}>
+                <select data-model="food">
+                    <option value="">choose a food</option>
+                    <option value="carrot">🥕</option>
+                    <option value="brocolli" selected>🥦</option>
+                </select>
+
+                <textarea data-model="comment"></textarea>
+
+                Comment: ${data.comment}
+            </div>
+        `);
+
+        const foodSelect = test.queryByDataModel('food');
+        if (!(foodSelect instanceof HTMLSelectElement)) {
+            throw new Error('wrong type');
+        }
+        expect(foodSelect.selectedOptions.length).toEqual(1);
+        expect(foodSelect.selectedOptions[0].value).toEqual('carrot');
+
+        const commentField = test.queryByDataModel('comment');
+        if (!(commentField instanceof HTMLTextAreaElement)) {
+            throw new Error('wrong type');
+        }
+        expect(commentField.value).toEqual('mmmm');
+
+        // NOW we will re-render
+        test.expectsAjaxCall('get')
+            .expectSentData({ food: 'carrot', comment: 'mmmm so good' })
+            // change the data to be extra tricky
+            .serverWillChangeData((data) => {
+                data.food = 'brocolli';
+                data.comment = data.comment.toUpperCase();
+            })
+            .init();
+
+        await userEvent.type(commentField, ' so good');
+        await waitFor(() => expect(test.element).toHaveTextContent('Comment: MMMM SO GOOD'));
+
+        expect(foodSelect.selectedOptions.length).toEqual(1);
+        expect(foodSelect.selectedOptions[0].value).toEqual('brocolli');
+        expect(commentField.value).toEqual('MMMM SO GOOD');
+    });
 });
