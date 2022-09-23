@@ -1,6 +1,7 @@
 export default class UnsyncedInputContainer {
     #mappedFields: Map<string, HTMLElement>;
     #unmappedFields: Array<HTMLElement> = [];
+    modelNames: string[] = [];
 
     constructor() {
         this.#mappedFields = new Map();
@@ -9,6 +10,9 @@ export default class UnsyncedInputContainer {
     add(element: HTMLElement, modelName: string|null = null) {
         if (modelName) {
             this.#mappedFields.set(modelName, element);
+            if (!this.modelNames.includes(modelName)) {
+                this.modelNames.push(modelName);
+            }
 
             return;
         }
@@ -26,5 +30,6 @@ export default class UnsyncedInputContainer {
 
     remove(modelName: string) {
         this.#mappedFields.delete(modelName);
+        this.modelNames = this.modelNames.filter(m => m !== modelName);
     }
 }

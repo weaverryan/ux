@@ -420,6 +420,8 @@ export default class extends Controller implements LiveController {
         // check if any unsynced inputs are now "in sync": their value matches what's in the store
         // if they ARE, then they are on longer "unsynced", which means that any
         // potential new values from the server *should* now be respected and used
+        // TODO: is this still needed?
+        // TODO: if not, can the whole mapped vs unmapped thing in UnsyncedInputContainer be removed?
         this.unsyncedInputs.allMappedFields().forEach((element, modelName) => {
             if (getValueFromElement(element, this.valueStore) === this.valueStore.get(modelName)) {
                 this.unsyncedInputs.remove(modelName);
@@ -513,16 +515,28 @@ export default class extends Controller implements LiveController {
         }
 
         /**
-         * If this re-render contains "mapped" fields that were updated after
-         * the Ajax call started, then we need those "unsynced" values to
-         * take precedence over the (out-of-date) values returned by the server.
+         * For any models modified since the last request started, grab
+         * their value now: we will re-set them after the new data from
+         * the server has been processed.
          */
         const modifiedModelValues: any = {};
-        if (this.unsyncedInputs.allMappedFields().size > 0) {
-            for (const [modelName] of this.unsyncedInputs.allMappedFields()) {
-                modifiedModelValues[modelName] = this.valueStore.get(modelName);
-            }
-        }
+        this.valueStore.updatedModels.forEach((modelName) => {
+            modifiedModelValues[modelName] = this.valueStore.get(modelName);
+        });
+        // 1) TODO in morphdom, for ALL unsyncedInputs, set the current value onto
+        //      the "to" element
+        // 2) DONE Use valueStore.updatedModels to re-set any models that
+        //      have been updated since the last request started back
+        //      onto the value store
+        // 3) DONE in synchronizeValueOfModelFields(), ask unsyncedInputs for
+        //      a list of "modelNames" that are currently in an unsynced
+        //      state and skip all fields with that model
+        // 4) TODO - check about how we "remove" models from UnsyncedInputContainer,
+        //      which relates to the other TODO and Unsynced...remove(). Also,
+        //      if we can remove the separation of synced vs unsynced elements
+        //      inside of UnsyncedInputContainer
+        // 5) TODO - determine what extra tests we need
+        console.log('modifiedModelValues', modifiedModelValues);
 
         // merge/patch in the new HTML
         this._executeMorphdom(html, this.unsyncedInputs.all());
@@ -1067,6 +1081,12 @@ export default class extends Controller implements LiveController {
             }
 
             const modelName = modelDirective.action;
+
+            // skip any elements whose model name is currently in an unsynced state
+            if (this.unsyncedInputs.modelNames.includes(modelName)) {
+                return;
+            }
+
             if (this.valueStore.has(modelName)) {
                 setValueOnElement(element, this.valueStore.get(modelName))
             }
