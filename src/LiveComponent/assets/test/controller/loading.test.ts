@@ -11,6 +11,7 @@
 
 import {createTest, initComponent, shutdownTest} from '../tools';
 import {getByTestId, getByText, waitFor} from '@testing-library/dom';
+import userEvent from "@testing-library/user-event";
 
 describe('LiveController data-loading Tests', () => {
     afterEach(() => {
@@ -50,7 +51,6 @@ describe('LiveController data-loading Tests', () => {
     });
 
     it('takes into account the "action" modifier', async () => {
-        // TODO start here!
         const test = await createTest({}, (data: any) => `
             <div ${initComponent(data)}> 
                 <span data-loading="action(save)|show" data-testid="loading-element">Loading...</span>
@@ -97,8 +97,60 @@ describe('LiveController data-loading Tests', () => {
         expect(getByTestId(test.element, 'loading-element')).not.toBeVisible();
     });
 
+    it('takes into account the "model" modifier', async () => {
+        const test = await createTest({ comments: '', user: { email: '' }}, (data: any) => `
+            <div ${initComponent(data)}> 
+                <textarea data-model="comments"></textarea>
+                <span data-loading="model(comments)|show" data-testid="comments-loading">Comments change loading...</span>
+
+                <textarea data-model="user.email"></textarea>
+                <span data-loading="model(user.email)|show" data-testid="email-loading">Checking if email is taken...</span>
+            </div>
+        `);
+
+        test.expectsAjaxCall('get')
+            .expectSentData({ comments: 'Changing the comments!', user: { email: '' } })
+            // delay so we can check loading
+            .delayResponse(50)
+            .init();
+
+        userEvent.type(test.queryByDataModel('comments'), 'Changing the comments!')
+        // it should not be loading yet due to debouncing
+        expect(getByTestId(test.element, 'comments-loading')).not.toBeVisible();
+        // wait for ajax call to start
+        await waitFor(() => expect(test.element).toHaveAttribute('busy'));
+        // NOW it should be loading
+        expect(getByTestId(test.element, 'comments-loading')).toBeVisible();
+        // but email-loading is not loading
+        expect(getByTestId(test.element, 'email-loading')).not.toBeVisible();
+        // wait for Ajax call to finish
+        await waitFor(() => expect(test.element).not.toHaveAttribute('busy'));
+        // loading is no longer visible
+        expect(getByTestId(test.element, 'comments-loading')).not.toBeVisible();
+
+        // now try the user.email "child property" field
+        test.expectsAjaxCall('get')
+            .expectSentData({ comments: 'Changing the comments!', user: { email: 'ryan@symfonycasts.com' } })
+            // delay so we can check loading
+            .delayResponse(50)
+            .init();
+
+        userEvent.type(test.queryByDataModel('user.email'), 'ryan@symfonycasts.com');
+        // it should not be loading yet due to debouncing
+        expect(getByTestId(test.element, 'email-loading')).not.toBeVisible();
+        // wait for ajax call to start
+        await waitFor(() => expect(test.element).toHaveAttribute('busy'));
+        // NOW it should be loading
+        expect(getByTestId(test.element, 'email-loading')).toBeVisible();
+        // but comments-loading is not loading
+        expect(getByTestId(test.element, 'comments-loading')).not.toBeVisible();
+        // wait for Ajax call to finish
+        await waitFor(() => expect(test.element).not.toHaveAttribute('busy'));
+        // loading is no longer visible
+        expect(getByTestId(test.element, 'email-loading')).not.toBeVisible();
+    });
+
     it('can handle multiple actions on the same request', async () => {
-        // TODO start here!
         const test = await createTest({}, (data: any) => `
             <div ${initComponent(data)}> 
                 <span data-loading="action(otherAction)|show" data-testid="loading-element">Loading...</span>

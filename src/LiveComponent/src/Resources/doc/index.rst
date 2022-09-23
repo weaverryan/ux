@@ -473,6 +473,23 @@ use the ``action()`` modifier with the name of the action - e.g. ``saveForm()``:
     <!-- multiple modifiers -->
     <div data-loading="action(saveForm)|delay|addClass(opacity-50)">...</div>
 
+Targeting Loading When a Specific Model Changes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can also toggle the loading behavior only if a specific model value
+was just changed using the ``model()`` modifier:
+
+.. code-block:: twig
+
+    <input data-model="email" type="email">
+
+    <span data-loading="model(email)|show">
+        Checking if email is available...
+    </span>
+
+    <!-- multiple modifiers & child properties -->
+    <span data-loading="model(user.email)|delay|addClass(opacity-50)">...</span>
+
 .. _actions:
 
 Actions

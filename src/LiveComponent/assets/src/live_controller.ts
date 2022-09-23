@@ -194,7 +194,7 @@ export default class extends Controller implements LiveController {
                     return;
                 }
 
-                console.warn(`Unknown modifier ${modifier.name} in action "${rawAction}". Available modifiers are ${Array.from(validModifiers.keys()).join(', ')}`);
+                console.warn(`Unknown modifier ${modifier.name} in action "${rawAction}". Available modifiers are: ${Array.from(validModifiers.keys()).join(', ')}.`);
             });
 
             if (!handled) {
@@ -424,7 +424,6 @@ export default class extends Controller implements LiveController {
         };
 
         const updatedModels = this.valueStore.updatedModels;
-        this.valueStore.updatedModels = [];
         if (actions.length === 0 && this._willDataFitInUrl(this.valueStore.asJson(), params)) {
             params.set('data', this.valueStore.asJson());
             updatedModels.forEach((model) => {
@@ -461,7 +460,11 @@ export default class extends Controller implements LiveController {
         const paramsString = params.toString();
         const thisPromise = fetch(`${url}${paramsString.length > 0 ? `?${paramsString}` : ''}`, fetchOptions);
         this.backendRequest = new BackendRequest(thisPromise, actions.map(action => action.name));
+        // loading should start after this.backendRequest is started but before
+        // updateModels is cleared so it has full data about actions in the
+        // current request and also updated models.
         this._onLoadingStart();
+        this.valueStore.updatedModels = [];
         thisPromise.then((response) => {
             response.text().then((html) => {
                 this.#processRerender(html, response);
@@ -561,34 +564,50 @@ export default class extends Controller implements LiveController {
         const finalAction = parseLoadingAction(directive.action, isLoading);
 
         const targetedActions: string[] = [];
+        const targetedModels: string[] = [];
         let delay = 0;
-        directive.modifiers.forEach((modifier => {
-            switch (modifier.name) {
-                case 'delay': {
-                    // if loading has *stopped*, the delay modifier has no effect
-                    if (!isLoading) {
-                        break;
-                    }
 
-                    delay = modifier.value ? parseInt(modifier.value) : 200;
-
-                    break;
-                }
-                case 'action': {
-                    if (!modifier.value) {
-                        throw new Error(`The "action" in data-loading must have an action name - e.g. action(foo). It's missing for ${directive.getString()}`);
-                    }
-                    targetedActions.push(modifier.value);
-                    break;
-                }
-
-                default:
-                    throw new Error(`Unknown modifier ${modifier.name} used in the loading directive ${directive.getString()}`)
+        const validModifiers: Map<string, (modifier: DirectiveModifier) => void> = new Map();
+        validModifiers.set('delay', (modifier: DirectiveModifier) => {
+            // if loading has *stopped*, the delay modifier has no effect
+            if (!isLoading) {
+                return;
             }
-        }));
+
+            delay = modifier.value ? parseInt(modifier.value) : 200;
+        });
+        validModifiers.set('action', (modifier: DirectiveModifier) => {
+            if (!modifier.value) {
+                throw new Error(`The "action" in data-loading must have an action name - e.g. action(foo). It's missing for "${directive.getString()}"`);
+            }
+            targetedActions.push(modifier.value);
+        });
+        validModifiers.set('model', (modifier: DirectiveModifier) => {
+            if (!modifier.value) {
+                throw new Error(`The "model" in data-loading must have an action name - e.g. model(foo). It's missing for "${directive.getString()}"`);
+            }
+            targetedModels.push(modifier.value);
+        });
+
+        directive.modifiers.forEach((modifier) => {
+            if (validModifiers.has(modifier.name)) {
+                // variable is entirely to make ts happy
+                const callable = validModifiers.get(modifier.name) ?? (() => {});
+                callable(modifier);
+
+                return;
+            }
+
+            throw new Error(`Unknown modifier "${modifier.name}" used in data-loading="${directive.getString()}". Available modifiers are: ${Array.from(validModifiers.keys()).join(', ')}.`)
+        });
 
         // if loading is being activated + action modifier, only apply if the action is on the request
         if (isLoading && targetedActions.length > 0 && this.backendRequest && !this.backendRequest.containsOneOfActions(targetedActions)) {
+            return;
+        }
+
+        // if loading is being activated + model modifier, only apply if the model is modified
+        if (isLoading && targetedModels.length > 0 && !this.valueStore.areAnyModelsUpdated(targetedModels)) {
             return;
         }
 
