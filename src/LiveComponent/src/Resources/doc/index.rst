@@ -463,6 +463,10 @@ changes until loading has taken longer than a certain amount of time:
 Targeting Loading for a Specific Action
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. versionadded:: 2.5
+
+    The ``action()`` modifier was introduced in Live Components 2.5.
+
 To only toggle the loading behavior when a specific action is triggered,
 use the ``action()`` modifier with the name of the action - e.g. ``saveForm()``:
 
@@ -475,6 +479,10 @@ use the ``action()`` modifier with the name of the action - e.g. ``saveForm()``:
 
 Targeting Loading When a Specific Model Changes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 2.5
+
+    The ``model()`` modifier was introduced in Live Components 2.5.
 
 You can also toggle the loading behavior only if a specific model value
 was just changed using the ``model()`` modifier:
