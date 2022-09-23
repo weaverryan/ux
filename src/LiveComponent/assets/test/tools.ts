@@ -240,9 +240,19 @@ class MockedAjaxCall {
             const params = new URLSearchParams({
                 data: JSON.stringify(this.expectedSentData)
             });
-            matcherObject.url = `end:?${params.toString()}`;
+            matcherObject.functionMatcher = (url: string) => {
+                return url.includes(`?${params.toString()}`);
+            };
         } else {
-            matcherObject.body = this.getRequestBody();
+            // match the body, by without "updatedModels" which is not important
+            // and also difficult/tedious to always assert
+            matcherObject.functionMatcher = (url: string, request: any) => {
+                const body = JSON.parse(request.body);
+                delete body.updatedModels;
+
+                return JSON.stringify(body) === JSON.stringify(this.getRequestBody());
+            };
+
             if (this.expectedActions.length === 1) {
                 matcherObject.url = `end:/${this.expectedActions[0].name}`;
             } else if (this.expectedActions.length > 1) {
