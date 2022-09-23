@@ -515,19 +515,6 @@ export default class extends Controller implements LiveController {
         this.valueStore.updatedModels.forEach((modelName) => {
             modifiedModelValues[modelName] = this.valueStore.get(modelName);
         });
-        // 1) TODO in morphdom, for ALL unsyncedInputs, set the current value onto
-        //      the "to" element
-        // 2) DONE Use valueStore.updatedModels to re-set any models that
-        //      have been updated since the last request started back
-        //      onto the value store
-        // 3) DONE in synchronizeValueOfModelFields(), ask unsyncedInputs for
-        //      a list of "modelNames" that are currently in an unsynced
-        //      state and skip all fields with that model
-        // 4) DONE - check about how we "remove" models from UnsyncedInputContainer,
-        //      which relates to the other DONE and Unsynced...remove(). Also,
-        //      if we can remove the separation of synced vs unsynced elements
-        //      inside of UnsyncedInputContainer
-        // 5) TODO - determine what extra tests we need
 
         // merge/patch in the new HTML
         this._executeMorphdom(html, this.unsyncedInputs.all());
@@ -708,9 +695,10 @@ export default class extends Controller implements LiveController {
                     return false;
                 }
 
-                // if this field has been modified since this HTML was requested, do not update it
+                // if this field's value has been modified since this HTML was
+                // requested, set the toEl's value to match the fromEl
                 if (modifiedElements.includes(fromEl)) {
-                    return false;
+                    setValueOnElement(toEl, getValueFromElement(fromEl, this.valueStore))
                 }
 
                 // https://github.com/patrick-steele-idem/morphdom#can-i-make-morphdom-blaze-through-the-dom-tree-even-faster-yes

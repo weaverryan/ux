@@ -627,4 +627,63 @@ describe('LiveController data-model Tests', () => {
         expect(foodSelect.selectedOptions[0].value).toEqual('brocolli');
         expect(commentField.value).toEqual('MMMM SO GOOD');
     });
+
+    it('keeps the unsynced value of an input on re-render, but accepts other changes to the field', async () => {
+        const test = await createTest({
+            comment: 'Live components',
+            unmappedTextareaValue: 'no data-model',
+            fieldClass: 'initial-class'
+        }, (data: any) => `
+           <div ${initComponent(data)}>
+               <textarea data-model="on(change)|comment" class="${data.fieldClass}"></textarea>
+
+               <textarea class="${data.fieldClass}" data-testid="unmappedTextarea">${data.unmappedTextareaValue}</textarea>
+
+               FieldClass: ${data.fieldClass}
+
+              <button data-action="live#$render">Reload</button>
+           </div>
+       `);
+
+        test.expectsAjaxCall('get')
+            .expectSentData(test.initialData)
+            .serverWillChangeData((data) => {
+                data.fieldClass = 'changed-class';
+            })
+            // delay slightly so we can type in the textarea
+            .delayResponse(10)
+            .init();
+
+        getByText(test.element, 'Reload').click();
+        const commentField = test.queryByDataModel('comment');
+        if (!(commentField instanceof HTMLTextAreaElement)) {
+            throw new Error('wrong type');
+        }
+        // mimic changing the field, but without (yet) triggering the change event
+        commentField.value = commentField.value + ' ftw!';
+        commentField.dispatchEvent(new Event('input', { bubbles: true }));
+
+        // also type into the unmapped field - but no worry about the model sync'ing this time
+        userEvent.type(getByTestId(test.element, 'unmappedTextarea'), ' here!')
+
+        await waitFor(() => expect(test.element).toHaveTextContent('FieldClass: changed-class'));
+        // re-find in case the element itself has changed by morphdom
+        const commentFieldAfterRender = test.queryByDataModel('comment');
+        if (!(commentFieldAfterRender instanceof HTMLTextAreaElement)) {
+            throw new Error('wrong type');
+        }
+        // the newly-typed characters have been kept
+        expect(commentFieldAfterRender.value).toEqual('Live components ftw!');
+        // double-check that the model hasn't been updated yet (else bug in test)
+        expect(test.controller.valueStore.get('comment')).toEqual('Live components');
+        expect(commentFieldAfterRender.getAttribute('class')).toEqual('changed-class');
+
+        const unmappedTextarea = getByTestId(test.element, 'unmappedTextarea');
+        if (!(unmappedTextarea instanceof HTMLTextAreaElement)) {
+            throw new Error('wrong type');
+        }
+        // the newly-typed characters have been kept
+        expect(unmappedTextarea.value).toEqual('no data-model here!');
+        expect(unmappedTextarea.getAttribute('class')).toEqual('changed-class');
+    });
 });
