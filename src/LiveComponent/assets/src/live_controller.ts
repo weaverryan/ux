@@ -377,6 +377,9 @@ export default class extends Controller implements LiveController {
         // the string "4" - back into an array with [id=4, title=new_title].
         this.valueStore.set(modelName, value);
 
+        // the model's data is no longer unsynced
+        this.unsyncedInputs.markModelAsSynced(modelName);
+
         // skip rendering if there is an action Ajax call processing
         if (shouldRender) {
             let debounce: number = this.getDefaultDebounce();
@@ -416,17 +419,6 @@ export default class extends Controller implements LiveController {
         this.isRerenderRequested = false;
         // we're making a request NOW, so no need to make another one after debouncing
         this.#clearRequestDebounceTimeout();
-
-        // check if any unsynced inputs are now "in sync": their value matches what's in the store
-        // if they ARE, then they are on longer "unsynced", which means that any
-        // potential new values from the server *should* now be respected and used
-        // TODO: is this still needed?
-        // TODO: if not, can the whole mapped vs unmapped thing in UnsyncedInputContainer be removed?
-        this.unsyncedInputs.allMappedFields().forEach((element, modelName) => {
-            if (getValueFromElement(element, this.valueStore) === this.valueStore.get(modelName)) {
-                this.unsyncedInputs.remove(modelName);
-            }
-        });
 
         const fetchOptions: RequestInit = {};
         fetchOptions.headers = {
@@ -531,12 +523,11 @@ export default class extends Controller implements LiveController {
         // 3) DONE in synchronizeValueOfModelFields(), ask unsyncedInputs for
         //      a list of "modelNames" that are currently in an unsynced
         //      state and skip all fields with that model
-        // 4) TODO - check about how we "remove" models from UnsyncedInputContainer,
-        //      which relates to the other TODO and Unsynced...remove(). Also,
+        // 4) DONE - check about how we "remove" models from UnsyncedInputContainer,
+        //      which relates to the other DONE and Unsynced...remove(). Also,
         //      if we can remove the separation of synced vs unsynced elements
         //      inside of UnsyncedInputContainer
         // 5) TODO - determine what extra tests we need
-        console.log('modifiedModelValues', modifiedModelValues);
 
         // merge/patch in the new HTML
         this._executeMorphdom(html, this.unsyncedInputs.all());
@@ -1083,7 +1074,7 @@ export default class extends Controller implements LiveController {
             const modelName = modelDirective.action;
 
             // skip any elements whose model name is currently in an unsynced state
-            if (this.unsyncedInputs.modelNames.includes(modelName)) {
+            if (this.unsyncedInputs.getModifiedModels().includes(modelName)) {
                 return;
             }
 

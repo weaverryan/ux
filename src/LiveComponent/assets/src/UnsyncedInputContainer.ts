@@ -1,7 +1,14 @@
+/**
+ * Tracks field & models whose values are "unsynced".
+ *
+ * Unsynced means that the value has been updated inside of
+ * a field (e.g. an input), but that this new value hasn't
+ * yet been set onto the actual model data. It is "unsynced"
+ * from the underlying model data.
+ */
 export default class UnsyncedInputContainer {
     #mappedFields: Map<string, HTMLElement>;
     #unmappedFields: Array<HTMLElement> = [];
-    modelNames: string[] = [];
 
     constructor() {
         this.#mappedFields = new Map();
@@ -10,9 +17,6 @@ export default class UnsyncedInputContainer {
     add(element: HTMLElement, modelName: string|null = null) {
         if (modelName) {
             this.#mappedFields.set(modelName, element);
-            if (!this.modelNames.includes(modelName)) {
-                this.modelNames.push(modelName);
-            }
 
             return;
         }
@@ -24,12 +28,11 @@ export default class UnsyncedInputContainer {
         return [...this.#unmappedFields, ...this.#mappedFields.values()]
     }
 
-    allMappedFields(): Map<string, HTMLElement> {
-        return this.#mappedFields;
+    markModelAsSynced(modelName: string): void {
+        this.#mappedFields.delete(modelName);
     }
 
-    remove(modelName: string) {
-        this.#mappedFields.delete(modelName);
-        this.modelNames = this.modelNames.filter(m => m !== modelName);
+    getModifiedModels(): string[] {
+        return Array.from(this.#mappedFields.keys());
     }
 }
