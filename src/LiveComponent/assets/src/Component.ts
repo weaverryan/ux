@@ -148,6 +148,12 @@ export default class Component {
         this.pollingIntervals.push(timer);
     }
 
+    stopAllPolling(): void {
+        this.pollingIntervals.forEach((interval) => {
+            clearInterval(interval);
+        });
+    }
+
     getUnsyncedModels(): string[] {
         return this.unsyncedInputsTracker.getModifiedModels();
     }
@@ -314,11 +320,5 @@ export default class Component {
         this.requestDebounceTimeout = window.setTimeout(() => {
             this.render();
         }, this.caculateDebounce(debounce));
-    }
-
-    private stopAllPolling(): void {
-        this.pollingIntervals.forEach((interval) => {
-            clearInterval(interval);
-        });
     }
 }

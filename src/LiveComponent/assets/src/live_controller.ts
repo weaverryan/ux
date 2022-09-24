@@ -69,6 +69,9 @@ export default class extends Controller implements LiveController {
         // after we finish rendering, re-set the "value" of model fields
         this.component.on('render.finished', () => {
             this.synchronizeValueOfModelFields();
+
+            // re-start polling, in case polling changed
+            this.initializePolling();
         });
         this.component.on('render.started', (html: string, response: Response, controls: { shouldRender: boolean }) => {
             if (this.isWindowUnloaded) {
@@ -370,6 +373,8 @@ export default class extends Controller implements LiveController {
     }
 
     private initializePolling(): void {
+        this.component.stopAllPolling();
+
         if ((this.element as HTMLElement).dataset.poll === undefined) {
             return;
         }
