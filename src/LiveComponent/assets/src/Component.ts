@@ -116,6 +116,7 @@ export default class Component {
 
     // TODO: return promise
     action(name: string, args: any, debounce: number|boolean = false): void {
+        console.log('ACTION', debounce);
         this.pendingActions.push({
             name,
             args
