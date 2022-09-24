@@ -1,6 +1,4 @@
-import UnsyncedInputContainer from "./UnsyncedInputContainer";
 import {ModelElementResolver} from "./ModelElementResolver";
-import {elementBelongsToThisController} from "./dom_utils";
 
 export default class {
     private readonly element: HTMLElement;
@@ -45,9 +43,9 @@ export default class {
 
     private updateModelFromElement(element: Element) {
         // TODO: put back this child element check
-        if (!elementBelongsToThisController(element, this)) {
-            return;
-        }
+        // if (!elementBelongsToThisController(element, this)) {
+        //     return;
+        // }
 
         if (!(element instanceof HTMLElement)) {
             throw new Error('Could not update model for non HTMLElement');
@@ -64,5 +62,44 @@ export default class {
 
     getModifiedModels(): string[] {
         return Array.from(this.unsyncedInputs.getModifiedModels());
+    }
+}
+
+/**
+ * Tracks field & models whose values are "unsynced".
+ *
+ * Unsynced means that the value has been updated inside of
+ * a field (e.g. an input), but that this new value hasn't
+ * yet been set onto the actual model data. It is "unsynced"
+ * from the underlying model data.
+ */
+class UnsyncedInputContainer {
+    #mappedFields: Map<string, HTMLElement>;
+    #unmappedFields: Array<HTMLElement> = [];
+
+    constructor() {
+        this.#mappedFields = new Map();
+    }
+
+    add(element: HTMLElement, modelName: string|null = null) {
+        if (modelName) {
+            this.#mappedFields.set(modelName, element);
+
+            return;
+        }
+
+        this.#unmappedFields.push(element);
+    }
+
+    all(): HTMLElement[] {
+        return [...this.#unmappedFields, ...this.#mappedFields.values()]
+    }
+
+    markModelAsSynced(modelName: string): void {
+        this.#mappedFields.delete(modelName);
+    }
+
+    getModifiedModels(): string[] {
+        return Array.from(this.#mappedFields.keys());
     }
 }

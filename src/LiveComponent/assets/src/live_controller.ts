@@ -10,7 +10,6 @@ import {
 } from './dom_utils';
 import Component from "./Component";
 import Backend from "./Backend";
-import ModelSynchronizer from "./ModelSynchronizer";
 import {DataModelElementResolver} from "./ModelElementResolver";
 
 interface UpdateModelOptions {
@@ -29,11 +28,6 @@ export default class extends Controller implements LiveController {
         url: String,
         data: Object,
         csrf: String,
-        /**
-         * The Debounce timeout.
-         *
-         * Default: 150
-         */
         debounce: { type: Number, default: 150 },
     }
 
@@ -44,7 +38,6 @@ export default class extends Controller implements LiveController {
     readonly debounceValue: number;
 
     component: Component;
-    private readonly modelSynchronizer: ModelSynchronizer;
 
     /**
      * Current "timeout" before the pending request should be sent.
@@ -67,7 +60,6 @@ export default class extends Controller implements LiveController {
     initialize() {
         // TODO / fix/replace all of this
         this.markAsWindowUnloaded = this.markAsWindowUnloaded.bind(this);
-        this.handleUpdateModelEvent = this.handleUpdateModelEvent.bind(this);
         this.handleConnectedControllerEvent = this.handleConnectedControllerEvent.bind(this);
         this.handleDisconnectedControllerEvent = this.handleDisconnectedControllerEvent.bind(this);
 
@@ -106,8 +98,6 @@ export default class extends Controller implements LiveController {
         }
 
         window.addEventListener('beforeunload', this.markAsWindowUnloaded);
-        this._startAttributesMutationObserver();
-        this.element.addEventListener('live:update-model', this.handleUpdateModelEvent);
 
         this.element.addEventListener('live:connect', this.handleConnectedControllerEvent);
 
@@ -116,14 +106,12 @@ export default class extends Controller implements LiveController {
 
     disconnect() {
         this.component.disconnect();
-        this.#clearRequestDebounceTimeout();
 
         this.elementEventListeners.forEach(({event, callback}) => {
             this.component.element.removeEventListener(event, callback);
         });
 
         window.removeEventListener('beforeunload', this.markAsWindowUnloaded);
-        this.element.removeEventListener('live:update-model', this.handleUpdateModelEvent);
         this.element.removeEventListener('live:connect', this.handleConnectedControllerEvent);
         this.element.removeEventListener('live:disconnect', this.handleDisconnectedControllerEvent);
 
@@ -197,7 +185,7 @@ export default class extends Controller implements LiveController {
             // model change *before* sending the action
             if (getModelDirectiveFromElement(event.currentTarget, false)) {
                 this.pendingActionTriggerModelElement = event.currentTarget;
-                this.#clearRequestDebounceTimeout();
+                //this.#clearRequestDebounceTimeout();
             }
         })
     }
@@ -376,142 +364,6 @@ export default class extends Controller implements LiveController {
         // Remove value from an array
         if (index > -1) {
             this.childComponentControllers.splice(index, 1);
-        }
-    }
-
-    handleUpdateModelEvent(event: any) {
-        // ignore events that we dispatched
-        if (event.target === this.element) {
-            return;
-        }
-
-        this._handleChildComponentUpdateModel(event);
-    }
-
-    _handleChildComponentUpdateModel(event: any) {
-        const mainModelName = event.detail.modelName;
-        const potentialModelNames = [
-            { name: mainModelName, required: false },
-        ];
-        if (event.detail.extraModelName) {
-            potentialModelNames.push({ name: event.detail.extraModelName, required: false });
-        }
-
-        const modelMapElement = event.target.closest('[data-model-map]');
-        if (this.element.contains(modelMapElement)) {
-            const directives = parseDirectives(modelMapElement.dataset.modelMap);
-
-            directives.forEach((directive) => {
-                let from = null;
-                directive.modifiers.forEach((modifier) => {
-                    switch (modifier.name) {
-                        case 'from':
-                            if (!modifier.value) {
-                                throw new Error(`The from() modifier requires a model name in data-model-map="${modelMapElement.dataset.modelMap}"`);
-                            }
-                            from = modifier.value;
-
-                            break;
-                        default:
-                            console.warn(`Unknown modifier "${modifier.name}" in data-model-map="${modelMapElement.dataset.modelMap}".`);
-                    }
-                });
-
-                if (!from) {
-                    throw new Error(`Missing from() modifier in data-model-map="${modelMapElement.dataset.modelMap}". The format should be "from(childModelName)|parentModelName"`);
-                }
-
-                // only look maps for the model currently being updated
-                if (from !== mainModelName) {
-                    return;
-                }
-
-                potentialModelNames.push({ name: directive.action, required: true });
-            });
-        }
-
-        potentialModelNames.reverse();
-        let foundModelName: string | null = null;
-        potentialModelNames.forEach((potentialModel) => {
-            if (foundModelName) {
-                return;
-            }
-
-            if (this.component.valueStore.hasAtTopLevel(potentialModel.name)) {
-                foundModelName = potentialModel.name;
-
-                return;
-            }
-
-            if (potentialModel.required) {
-                throw new Error(`The model name "${potentialModel.name}" does not exist! Found in data-model-map="from(${mainModelName})|${potentialModel.name}"`);
-            }
-        });
-
-        if (!foundModelName) {
-            return;
-        }
-
-        this.$updateModel(
-            foundModelName,
-            event.detail.value,
-            false,
-            null,
-            {
-                dispatch: false
-            }
-        );
-    }
-
-    /**
-     * Helps "re-normalize" certain root element attributes after a re-render.
-     *
-     *      1) Re-establishes the data-original-data attribute if missing.
-     *      2) Stops or re-initializes data-poll
-     *
-     * This happens if a parent component re-renders a child component
-     * and morphdom *updates* child. This commonly happens if a parent
-     * component is around a list of child components, and changing
-     * something in the parent causes the list to change. In that case,
-     * the child component might be removed while another is added.
-     * But to morphdom, this sometimes looks like an "update". The result
-     * is that the child component is re-rendered, but the child component
-     * is not re-initialized. And so, the data-original-data attribute
-     * is missing and never re-established.
-     */
-    _startAttributesMutationObserver() {
-        if (!(this.element instanceof HTMLElement)) {
-            throw new Error('Invalid Element Type');
-        }
-        const element : HTMLElement = this.element;
-
-        this.mutationObserver = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                // TODO: fix this
-                return;
-                /*
-                if (mutation.type === 'attributes') {
-                    if (!element.dataset.originalData) {
-                        this.originalDataJSON = this.valueStore.asJson();
-                        this._exposeOriginalData();
-                    }
-
-                    this._initiatePolling();
-                }
-                 */
-            });
-        });
-
-        this.mutationObserver.observe(this.element, {
-            attributes: true
-        });
-    }
-
-    #clearRequestDebounceTimeout() {
-        // clear any pending renders
-        if (this.requestDebounceTimeout) {
-            clearTimeout(this.requestDebounceTimeout);
-            this.requestDebounceTimeout = null;
         }
     }
 
