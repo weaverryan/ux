@@ -9,15 +9,18 @@ import {
 import {executeMorphdom} from "./morphdom";
 import UnsyncedInputsTracker from "./UnsyncedInputsTracker";
 import {ModelElementResolver} from "./ModelElementResolver";
+import HookManager from "./HookManager";
 
 declare const Turbo: any;
 
 export default class Component {
     readonly element: HTMLElement;
     private readonly backend: Backend;
+
     readonly valueStore: ValueStore;
     private readonly unsyncedInputsTracker: UnsyncedInputsTracker;
     private readonly loadingHelper: LoadingHelper;
+    private hooks: HookManager;
 
     defaultDebounce = 150;
 
@@ -38,13 +41,13 @@ export default class Component {
      * @param modelElementResolver Class to get "model" name from any element.
      */
     constructor(element: HTMLElement, data: any, backend: Backend, modelElementResolver: ModelElementResolver) {
-        console.log('CONSTRUCT');
         this.element = element;
         this.backend = backend;
 
         this.valueStore = new ValueStore(data);
         this.unsyncedInputsTracker = new UnsyncedInputsTracker(element, modelElementResolver);
         this.loadingHelper = new LoadingHelper();
+        this.hooks = new HookManager();
 
         // deep clone the data
         this.snapshotOriginalData();
@@ -62,6 +65,15 @@ export default class Component {
         this.stopAllPolling();
         this.clearRequestDebounceTimeout();
         this.unsyncedInputsTracker.deactivate();
+    }
+
+    /**
+     * Add a named hook to the component. Available hooks are:
+     *
+     *      * request.rendered: (component) => {}
+     */
+    on(hookName: string, callback: () => void): void {
+        this.hooks.register(hookName, callback);
     }
 
     // TODO: return a promise
@@ -255,8 +267,7 @@ export default class Component {
             this.valueStore.set(modelName, modifiedModelValues[modelName]);
         });
 
-        // TODO: put this back in live_controller.ts, via a promise or hook system
-        //this.modelSynchronizer.synchronizeValueOfModelFields();
+        this.hooks.triggerHook('request.rendered', this);
     }
 
     private dispatchEvent(name: string, payload: any = null, canBubble = true, cancelable = false) {
