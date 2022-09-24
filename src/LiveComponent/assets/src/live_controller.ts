@@ -67,8 +67,13 @@ export default class extends Controller implements LiveController {
             this.component.defaultDebounce = this.debounceValue;
         }
         // after we finish rendering, re-set the "value" of model fields
-        this.component.on('request.rendered', () => {
+        this.component.on('render.finished', () => {
             this.synchronizeValueOfModelFields();
+        });
+        this.component.on('render.started', (html: string, response: Response, controls: { shouldRender: boolean }) => {
+            if (this.isWindowUnloaded) {
+                controls.shouldRender = false;
+            }
         });
 
         this.synchronizeValueOfModelFields();

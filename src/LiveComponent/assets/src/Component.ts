@@ -70,9 +70,10 @@ export default class Component {
     /**
      * Add a named hook to the component. Available hooks are:
      *
-     *      * request.rendered: (component) => {}
+     *     * render.started: (html: string, response: Response, controls: { shouldRender: boolean }) => {}
+     *     * render.finished: (component: Component) => {}
      */
-    on(hookName: string, callback: () => void): void {
+    on(hookName: string, callback: (...args: any[]) => void): void {
         this.hooks.register(hookName, callback);
     }
 
@@ -203,6 +204,13 @@ export default class Component {
     }
 
     private processRerender(html: string, response: Response) {
+        const controls = { shouldRender: true };
+        this.hooks.triggerHook('render.started', html, response, controls);
+        // used to notify that the component doesn't live on the page anymore
+        if (!controls.shouldRender) {
+            return;
+        }
+
         // check if the page is navigating away
         //if (this.isWindowUnloaded) {
         // TODO: bring back windowUnloaded
@@ -267,7 +275,7 @@ export default class Component {
             this.valueStore.set(modelName, modifiedModelValues[modelName]);
         });
 
-        this.hooks.triggerHook('request.rendered', this);
+        this.hooks.triggerHook('render.finished', this);
     }
 
     private dispatchEvent(name: string, payload: any = null, canBubble = true, cancelable = false) {
