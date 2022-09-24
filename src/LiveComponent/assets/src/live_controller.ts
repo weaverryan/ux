@@ -4,9 +4,14 @@ import { normalizeModelName } from './string_utils';
 import {
     getModelDirectiveFromElement,
     getElementAsTagText,
+    setValueOnElement,
+    getValueFromElement,
+    elementBelongsToThisController,
 } from './dom_utils';
 import Component from "./Component";
 import Backend from "./Backend";
+import ModelSynchronizer from "./ModelSynchronizer";
+import {DataModelElementResolver} from "./ModelElementResolver";
 
 interface UpdateModelOptions {
     dispatch?: boolean;
@@ -39,6 +44,7 @@ export default class extends Controller implements LiveController {
     readonly debounceValue: number;
 
     component: Component;
+    private readonly modelSynchronizer: ModelSynchronizer;
 
     /**
      * Current "timeout" before the pending request should be sent.
@@ -53,6 +59,11 @@ export default class extends Controller implements LiveController {
 
     pendingActionTriggerModelElement: HTMLElement|null = null;
 
+    private elementEventListeners: Array<{ event: string, callback: (event: any) => void }> = [
+         { event: 'input', callback: (event) => this.handleInputEvent(event) },
+         { event: 'change', callback: (event) => this.handleChangeEvent(event) },
+     ];
+
     initialize() {
         // TODO / fix/replace all of this
         this.markAsWindowUnloaded = this.markAsWindowUnloaded.bind(this);
@@ -63,19 +74,29 @@ export default class extends Controller implements LiveController {
         if (!(this.element instanceof HTMLElement)) {
             throw new Error('Invalid Element Type');
         }
-        console.log('INIT COMPONENT');
+
         this.component = new Component(
             this.element,
             this.dataValue,
-            new Backend(this.urlValue, this.csrfValue)
+            new Backend(this.urlValue, this.csrfValue),
+            new DataModelElementResolver(),
         );
         if (this.hasDebounceValue) {
             this.component.defaultDebounce = this.debounceValue;
         }
+
+        // TODO put back most of the input/change listener and the "updateModelFromElement" stuff
+        this.synchronizeValueOfModelFields();
     }
 
     connect() {
         this.component.connect();
+        this.initializePolling();
+
+        this.elementEventListeners.forEach(({event, callback}) => {
+            this.component.element.addEventListener(event, callback);
+        });
+
         // hide "loading" elements to begin with
         // This is done with CSS, but only for the most basic cases
 
@@ -96,6 +117,10 @@ export default class extends Controller implements LiveController {
     disconnect() {
         this.component.disconnect();
         this.#clearRequestDebounceTimeout();
+
+        this.elementEventListeners.forEach(({event, callback}) => {
+            this.component.element.removeEventListener(event, callback);
+        });
 
         window.removeEventListener('beforeunload', this.markAsWindowUnloaded);
         this.element.removeEventListener('live:update-model', this.handleUpdateModelEvent);
@@ -119,7 +144,7 @@ export default class extends Controller implements LiveController {
             throw new Error(`Since LiveComponents 2.3, you no longer need data-action="live#update" on form elements. Found on element: ${getElementAsTagText(event.target)}`);
         }
 
-        this.component.setValueFromElement(event.target);
+        this.updateModelFromElementEvent(event.target, null);
     }
 
     action(event: any) {
@@ -214,6 +239,116 @@ export default class extends Controller implements LiveController {
         this.component.set(model, value, shouldRender, options.debounce);
     }
 
+    private handleInputEvent(event: Event) {
+        const target = event.target as Element;
+        if (!target) {
+            return;
+        }
+
+        this.updateModelFromElementEvent(target, 'input')
+    }
+
+    private handleChangeEvent(event: Event) {
+        const target = event.target as Element;
+        if (!target) {
+            return;
+        }
+
+        this.updateModelFromElementEvent(target, 'change')
+    }
+
+    /**
+     * Sets a model given an element and some event.
+     *
+     * This parses the "data-model" from the element and takes
+     * into account modifiers like "debounce", "norender" and "on()".
+     *
+     * This is used, for example, the grab the new value from an input
+     * on "change" and set that new value onto the model.
+     *
+     * It's also used to, on click, set the value from a button
+     * with data-model="" and data-value"".
+     *
+     * @param element
+     * @param eventName If specified (e.g. "input" or "change"), the model may
+     *                  skip updating if the on() modifier is passed (e.g. on(change)).
+     *                  If not passed, the model will always be updated.
+     */
+    private updateModelFromElementEvent(element: Element, eventName: string|null) {
+        if (!elementBelongsToThisController(element, this)) {
+            return;
+        }
+
+        if (!(element instanceof HTMLElement)) {
+            throw new Error('Could not update model for non HTMLElement');
+        }
+
+        const modelDirective = getModelDirectiveFromElement(element, false);
+
+        // if not tied to a model, no more work to be done
+        if (!modelDirective) {
+            return;
+        }
+
+        let shouldRender = true;
+        let targetEventName = 'input';
+        let debounce: number|boolean = false;
+
+        modelDirective.modifiers.forEach((modifier) => {
+            switch (modifier.name) {
+                case 'on':
+                    if (!modifier.value) {
+                        throw new Error(`The "on" modifier in ${modelDirective.getString()} requires a value - e.g. on(change).`);
+                    }
+                    if (!['input', 'change'].includes(modifier.value)) {
+                        throw new Error(`The "on" modifier in ${modelDirective.getString()} only accepts the arguments "input" or "change".`);
+                    }
+
+                    targetEventName = modifier.value;
+
+                    break;
+                case 'norender':
+                    shouldRender = false;
+
+                    break;
+
+                case 'debounce':
+                    debounce = modifier.value ? parseInt(modifier.value) : true;
+
+                    break;
+                default:
+                    console.warn(`Unknown modifier "${modifier.name}" in data-model="${modelDirective.getString()}".`);
+            }
+        });
+
+        // rare case where the same event+element triggers a model
+        // update *and* an action. The action is already scheduled
+        // to occur, so we do not need to *also* trigger a re-render.
+        if (this.pendingActionTriggerModelElement === element) {
+            shouldRender = false;
+        }
+
+        // e.g. we are targeting "change" and this is the "input" event
+        // so do *not* update the model yet
+        if (eventName && targetEventName !== eventName) {
+            return;
+        }
+
+        if (false === debounce) {
+            if (targetEventName === 'input') {
+                // true debounce will cause default to be used
+                debounce = true;
+            } else {
+                // for change, add no debounce
+                debounce = 0;
+            }
+        }
+
+        const finalValue = getValueFromElement(element, this.component.valueStore);
+
+        this.component.set(modelDirective.action, finalValue, shouldRender, debounce);
+    }
+
     markAsWindowUnloaded = () => {
         this.isWindowUnloaded = true;
     };
@@ -254,8 +389,6 @@ export default class extends Controller implements LiveController {
     }
 
     _handleChildComponentUpdateModel(event: any) {
-        // TODO: fix this
-        return;
         const mainModelName = event.detail.modelName;
         const potentialModelNames = [
             { name: mainModelName, required: false },
@@ -304,7 +437,7 @@ export default class extends Controller implements LiveController {
                 return;
             }
 
-            if (this.valueStore.hasAtTopLevel(potentialModel.name)) {
+            if (this.component.valueStore.hasAtTopLevel(potentialModel.name)) {
                 foundModelName = potentialModel.name;
 
                 return;
@@ -388,5 +521,79 @@ export default class extends Controller implements LiveController {
             cancelable,
             detail: payload
         }));
+    }
+
+    private initializePolling(): void {
+        if ((this.element as HTMLElement).dataset.poll === undefined) {
+            return;
+        }
+
+        const rawPollConfig = (this.element as HTMLElement).dataset.poll;
+        const directives = parseDirectives(rawPollConfig || '$render');
+
+        directives.forEach((directive) => {
+            let duration = 2000;
+
+            directive.modifiers.forEach((modifier) => {
+                switch (modifier.name) {
+                    case 'delay':
+                        if (modifier.value) {
+                            duration = parseInt(modifier.value);
+                        }
+
+                         break;
+                    default:
+                        console.warn(`Unknown modifier "${modifier.name}" in data-poll "${rawPollConfig}".`);
+                }
+            });
+
+            this.component.startPoll(directive.action, duration);
+        })
+    }
+
+    /**
+     * Sets the "value" of all model fields to the component data.
+     *
+     * This is called when the component initializes and after re-render.
+     * Take the following element:
+     *
+     *      <input data-model="firstName">
+     *
+     * This method will set the "value" of that element to the value of
+     * the "firstName" model.
+     */
+    // TODO: call this when needed
+    synchronizeValueOfModelFields(): void {
+        this.component.element.querySelectorAll('[data-model]').forEach((element: Element) => {
+            if (!(element instanceof HTMLElement)) {
+                throw new Error('Invalid element using data-model.');
+            }
+
+            if (element instanceof HTMLFormElement) {
+                return;
+            }
+
+            const modelDirective = getModelDirectiveFromElement(element);
+            if (!modelDirective) {
+                return;
+            }
+
+            const modelName = modelDirective.action;
+
+            // skip any elements whose model name is currently in an unsynced state
+            if (this.component.getUnsyncedModels().includes(modelName)) {
+                return;
+            }
+
+            if (this.component.valueStore.has(modelName)) {
+                setValueOnElement(element, this.component.valueStore.get(modelName))
+            }
+
+            // for select elements without a blank value, one might be selected automatically
+            // https://github.com/symfony/ux/issues/469
+            if (element instanceof HTMLSelectElement && !element.multiple) {
+                this.component.valueStore.set(modelName, getValueFromElement(element, this.component.valueStore));
+            }
+        })
     }
 }

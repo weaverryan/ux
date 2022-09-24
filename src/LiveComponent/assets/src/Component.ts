@@ -7,8 +7,8 @@ import {
     getValueFromElement, htmlToElement,
 } from "./dom_utils";
 import {executeMorphdom} from "./morphdom";
-import ModelSynchronizer from "./ModelSynchronizer";
-import {parseDirectives} from "./directives_parser";
+import UnsyncedInputsTracker from "./UnsyncedInputsTracker";
+import {ModelElementResolver} from "./ModelElementResolver";
 
 declare const Turbo: any;
 
@@ -16,8 +16,8 @@ export default class Component {
     readonly element: HTMLElement;
     private readonly backend: Backend;
     readonly valueStore: ValueStore;
+    private readonly unsyncedInputsTracker: UnsyncedInputsTracker;
     private readonly loadingHelper: LoadingHelper;
-    private readonly modelSynchronizer: ModelSynchronizer;
 
     defaultDebounce = 150;
 
@@ -31,25 +31,20 @@ export default class Component {
     private requestDebounceTimeout: number | null = null;
     pollingIntervals: NodeJS.Timer[] = [];
 
-    pendingActionTriggerModelElement: HTMLElement|null = null;
-
-    private elementEventListeners: Array<{ event: string, callback: (event: any) => void }> = [
-    ];
-
     /**
      * @param element The root element
      * @param data    Component data
      * @param backend Backend instance for updating
+     * @param modelElementResolver Class to get "model" name from any element.
      */
-    constructor(element: HTMLElement, data: any, backend: Backend) {
+    constructor(element: HTMLElement, data: any, backend: Backend, modelElementResolver: ModelElementResolver) {
         console.log('CONSTRUCT');
         this.element = element;
         this.backend = backend;
 
         this.valueStore = new ValueStore(data);
+        this.unsyncedInputsTracker = new UnsyncedInputsTracker(element, modelElementResolver);
         this.loadingHelper = new LoadingHelper();
-        this.modelSynchronizer = new ModelSynchronizer(this);
-        this.modelSynchronizer.synchronizeValueOfModelFields();
 
         // deep clone the data
         this.snapshotOriginalData();
@@ -59,21 +54,10 @@ export default class Component {
     }
 
     connect(): void {
-        this.modelSynchronizer.activate();
-
-        this.elementEventListeners.forEach(({event, callback}) => {
-            this.element.addEventListener(event, callback);
-        });
-
-        this.initiatePolling();
     }
 
     disconnect(): void {
         this.stopAllPolling();
-        this.modelSynchronizer.deactivate();
-        this.elementEventListeners.forEach(({event, callback}) => {
-            this.element.removeEventListener(event, callback);
-        });
         this.clearRequestDebounceTimeout();
     }
 
@@ -96,8 +80,7 @@ export default class Component {
         }
 
         // the model's data is no longer unsynced
-        // TODO: could this be done in ModelSynchronizer via a hook on ValueStore?
-        this.modelSynchronizer.markModelAsSynced(modelName);
+        this.unsyncedInputsTracker.markModelAsSynced(modelName);
 
         if (!reRender) {
             return;
@@ -131,10 +114,6 @@ export default class Component {
         this.tryStartingRequest();
     }
 
-    setValueFromElement(element: HTMLElement): void {
-        this.modelSynchronizer.updateFromElement(element);
-    }
-
     startPoll(actionName: string, duration: number) {
         let callback: () => void;
         if (actionName === '$render') {
@@ -151,6 +130,10 @@ export default class Component {
             callback();
         }, duration);
         this.pollingIntervals.push(timer);
+    }
+
+    getUnsyncedModels(): string[] {
+        return this.unsyncedInputsTracker.getModifiedModels();
     }
 
     private tryStartingRequest(): void {
@@ -252,7 +235,7 @@ export default class Component {
         executeMorphdom(
             this.element,
             newElement,
-            this.modelSynchronizer.getUnsyncedInputs(),
+            this.unsyncedInputsTracker.getUnsyncedInputs(),
             (element: HTMLElement) => getValueFromElement(element, this.valueStore),
             this.originalData,
             this.valueStore.all(),
@@ -269,7 +252,8 @@ export default class Component {
             this.valueStore.set(modelName, modifiedModelValues[modelName]);
         });
 
-        this.modelSynchronizer.synchronizeValueOfModelFields();
+        // TODO: put this back in live_controller.ts, via a promise or hook system
+        //this.modelSynchronizer.synchronizeValueOfModelFields();
     }
 
     private dispatchEvent(name: string, payload: any = null, canBubble = true, cancelable = false) {
@@ -308,34 +292,6 @@ export default class Component {
         this.requestDebounceTimeout = window.setTimeout(() => {
             this.render();
         }, this.caculateDebounce(debounce));
-    }
-
-    private initiatePolling(): void {
-        if ((this.element as HTMLElement).dataset.poll === undefined) {
-            return;
-        }
-
-        const rawPollConfig = (this.element as HTMLElement).dataset.poll;
-        const directives = parseDirectives(rawPollConfig || '$render');
-
-        directives.forEach((directive) => {
-            let duration = 2000;
-
-            directive.modifiers.forEach((modifier) => {
-                switch (modifier.name) {
-                    case 'delay':
-                        if (modifier.value) {
-                            duration = parseInt(modifier.value);
-                        }
-
-                         break;
-                    default:
-                        console.warn(`Unknown modifier "${modifier.name}" in data-poll "${rawPollConfig}".`);
-                }
-            });
-
-            this.startPoll(directive.action, duration);
-        })
     }
 
     private stopAllPolling(): void {
