@@ -54,11 +54,14 @@ export default class Component {
     }
 
     connect(): void {
+        // TODO: restart existing polls
+        this.unsyncedInputsTracker.activate();
     }
 
     disconnect(): void {
         this.stopAllPolling();
         this.clearRequestDebounceTimeout();
+        this.unsyncedInputsTracker.deactivate();
     }
 
     // TODO: return a promise

@@ -38,18 +38,8 @@ export default class extends Controller implements LiveController {
     readonly debounceValue: number;
 
     component: Component;
-
-    /**
-     * Current "timeout" before the pending request should be sent.
-     */
-    requestDebounceTimeout: number | null = null;
-
     isWindowUnloaded = false;
-
-    mutationObserver: MutationObserver|null = null;
-
     childComponentControllers: Array<LiveController> = [];
-
     pendingActionTriggerModelElement: HTMLElement|null = null;
 
     private elementEventListeners: Array<{ event: string, callback: (event: any) => void }> = [
@@ -77,7 +67,6 @@ export default class extends Controller implements LiveController {
             this.component.defaultDebounce = this.debounceValue;
         }
 
-        // TODO put back most of the input/change listener and the "updateModelFromElement" stuff
         this.synchronizeValueOfModelFields();
     }
 
@@ -116,10 +105,6 @@ export default class extends Controller implements LiveController {
         this.element.removeEventListener('live:disconnect', this.handleDisconnectedControllerEvent);
 
         this._dispatchEvent('live:disconnect', { controller: this });
-
-        if (this.mutationObserver) {
-            this.mutationObserver.disconnect();
-        }
     }
 
     /**
