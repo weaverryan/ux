@@ -206,7 +206,7 @@ class MockedAjaxCall {
     getVisualSummary(): string {
         const requestInfo = [];
         if (this.method === 'GET') {
-            requestInfo.push(` URL MATCH: ${this.getMockMatcher().url}`);
+            requestInfo.push(` URL MATCH: end:${this.getMockMatcher(true).url}`);
         }
         requestInfo.push(`  METHOD: ${this.method}`);
         if (Object.keys(this.expectedHeaders).length > 0) {
@@ -225,7 +225,7 @@ class MockedAjaxCall {
     }
 
     // https://www.wheresrhys.co.uk/fetch-mock/#api-mockingmock_matcher
-    private getMockMatcher(): any {
+    private getMockMatcher(forError = false): any {
         if (!this.expectedSentData) {
             throw new Error('expectedSentData not set yet');
         }
@@ -240,9 +240,14 @@ class MockedAjaxCall {
             const params = new URLSearchParams({
                 data: JSON.stringify(this.expectedSentData)
             });
-            matcherObject.functionMatcher = (url: string) => {
-                return url.includes(`?${params.toString()}`);
-            };
+            if (forError) {
+                // simplified version for error reporting
+                matcherObject.url = `?${params.toString()}`;
+            } else {
+                matcherObject.functionMatcher = (url: string) => {
+                    return url.includes(`?${params.toString()}`);
+                };
+            }
         } else {
             // match the body, by without "updatedModels" which is not important
             // and also difficult/tedious to always assert

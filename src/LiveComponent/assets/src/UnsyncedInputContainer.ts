@@ -24,7 +24,7 @@ export default class UnsyncedInputContainer {
         this.#unmappedFields.push(element);
     }
 
-    all() {
+    all(): HTMLElement[] {
         return [...this.#unmappedFields, ...this.#mappedFields.values()]
     }
 
