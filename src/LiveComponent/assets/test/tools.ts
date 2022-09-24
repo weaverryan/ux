@@ -3,6 +3,7 @@ import LiveController from '../src/live_controller';
 import { waitFor } from '@testing-library/dom';
 import fetchMock from 'fetch-mock-jest';
 import { htmlToElement } from '../src/dom_utils';
+import Component from '../src/Component';
 
 let activeTest: FunctionalTest|null = null;
 let unmatchedFetchErrors: Array<{url: string, method: string, body: any, headers: any}> = [];
@@ -72,6 +73,7 @@ export function shutdownTest() {
 
 class FunctionalTest {
     controller: LiveController;
+    component: Component;
     element: HTMLElement;
     initialData: any;
     template: (data: any) => string;
@@ -79,6 +81,7 @@ class FunctionalTest {
 
     constructor(controller: LiveController, element: HTMLElement, initialData: any, template: (data: any) => string) {
         this.controller = controller;
+        this.component = controller.component;
         this.element = element;
         this.initialData = initialData;
         this.template = template;
