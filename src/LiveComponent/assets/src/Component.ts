@@ -79,7 +79,6 @@ export default class Component {
 
     // TODO: return a promise
     set(model: string, value: any, reRender = false, debounce: number|boolean = false): void {
-        console.log('set', model, value, reRender, this.isRequestPending);
         const modelName = normalizeModelName(model);
         this.valueStore.set(modelName, value);
 
@@ -116,7 +115,6 @@ export default class Component {
 
     // TODO: return promise
     action(name: string, args: any, debounce: number|boolean = false): void {
-        console.log('ACTION', debounce);
         this.pendingActions.push({
             name,
             args
@@ -127,7 +125,6 @@ export default class Component {
 
     // TODO return a promise
     render(): void {
-        console.log('RENDER');
         this.tryStartingRequest();
     }
 
@@ -160,7 +157,6 @@ export default class Component {
     }
 
     private tryStartingRequest(): void {
-        console.log('tryStartingRequest');
         if (!this.backendRequest) {
             this.performRequest()
 
@@ -172,7 +168,6 @@ export default class Component {
     }
 
     private performRequest(): BackendRequest {
-        console.log('START REQUEST', this.valueStore.all());
         this.backendRequest = this.backend.makeRequest(
             this.valueStore.all(),
             this.pendingActions,
@@ -183,17 +178,10 @@ export default class Component {
         this.pendingActions = [];
         this.valueStore.updatedModels = [];
         this.isRequestPending = false;
-        console.log('isRequestPending before', this.isRequestPending);
-        setTimeout(() => {
-            console.log('0ms later', this.isRequestPending);
-        }, 0);
 
         this.backendRequest.promise.then((response) => {
-            console.log('FINISH LOADING');
             response.text().then((html) => {
-                console.log('isRequestPending', this.isRequestPending);
                 this.processRerender(html, response);
-                console.log('FINISH RE_RENDER');
 
                 this.backendRequest = null;
 
