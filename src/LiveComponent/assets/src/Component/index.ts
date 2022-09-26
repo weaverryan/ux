@@ -1,4 +1,4 @@
-import Backend, {BackendAction} from '../Backend';
+import {BackendAction, BackendInterface} from '../Backend';
 import ValueStore from './ValueStore';
 import { normalizeModelName } from '../string_utils';
 import BackendRequest from "../BackendRequest";
@@ -13,7 +13,7 @@ import HookManager from "../HookManager";
 
 declare const Turbo: any;
 
-export function createComponent(element: HTMLElement, data: any, backend: Backend, modelElementResolver: ModelElementResolver): Component {
+export function createComponent(element: HTMLElement, data: any, backend: BackendInterface, modelElementResolver: ModelElementResolver): Component {
     const component = new Component(element, data, backend, modelElementResolver);
 
     return new Proxy(component, {
@@ -22,8 +22,8 @@ export function createComponent(element: HTMLElement, data: any, backend: Backen
             if (prop in component || typeof prop !== 'string') {
                 if (typeof component[prop as keyof typeof component] === 'function') {
                     const callable = component[prop as keyof typeof component] as (...args: any) => any;
-                    return function (...args: any) {
-                        return callable(...args);
+                    return (...args: any) => {
+                        return callable.apply(component, args);
                     }
                 }
 
@@ -37,8 +37,8 @@ export function createComponent(element: HTMLElement, data: any, backend: Backen
             }
 
             // try to call an action
-            return function (...args: any[]) {
-                return component.action(prop, args);
+            return (args: string[]) => {
+                return component.action.apply(component, [prop, args]);
             }
         },
 
@@ -61,7 +61,7 @@ export function createComponent(element: HTMLElement, data: any, backend: Backen
 
 export default class Component {
     readonly element: HTMLElement;
-    private readonly backend: Backend;
+    private readonly backend: BackendInterface;
 
     readonly valueStore: ValueStore;
     private readonly unsyncedInputsTracker: UnsyncedInputsTracker;
@@ -86,7 +86,7 @@ export default class Component {
      * @param backend Backend instance for updating
      * @param modelElementResolver Class to get "model" name from any element.
      */
-    constructor(element: HTMLElement, data: any, backend: Backend, modelElementResolver: ModelElementResolver) {
+    constructor(element: HTMLElement, data: any, backend: BackendInterface, modelElementResolver: ModelElementResolver) {
         this.element = element;
         this.backend = backend;
 

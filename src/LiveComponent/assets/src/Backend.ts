@@ -1,6 +1,15 @@
 import BackendRequest from './BackendRequest';
 
-export default class {
+export interface BackendInterface {
+    makeRequest(data: any, actions: BackendAction[], updatedModels: string[]): BackendRequest;
+}
+
+export interface BackendAction {
+    name: string,
+    args: Record<string, string>
+}
+
+export default class implements BackendInterface {
     private url: string;
     private csrfToken: string|null;
 
@@ -67,9 +76,4 @@ export default class {
         // if the URL gets remotely close to 2000 chars, it may not fit
         return (urlEncodedJsonData + params.toString()).length < 1500;
     }
-}
-
-export interface BackendAction {
-    name: string,
-    args: Record<string, string>
 }

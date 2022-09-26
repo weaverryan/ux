@@ -8,9 +8,9 @@ import {
     getValueFromElement,
     elementBelongsToThisController,
 } from './dom_utils';
-import Component from "./Component";
+import Component, {createComponent} from "./Component";
 import Backend from "./Backend";
-import {DataModelElementResolver} from "./ModelElementResolver";
+import {DataModelElementResolver} from "./Component/ModelElementResolver";
 
 interface UpdateModelOptions {
     dispatch?: boolean;
@@ -57,7 +57,7 @@ export default class extends Controller implements LiveController {
             throw new Error('Invalid Element Type');
         }
 
-        this.component = new Component(
+        this.component = createComponent(
             this.element,
             this.dataValue,
             new Backend(this.urlValue, this.csrfValue),
