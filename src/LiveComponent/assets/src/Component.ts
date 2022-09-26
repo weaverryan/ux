@@ -13,6 +13,52 @@ import HookManager from "./HookManager";
 
 declare const Turbo: any;
 
+export function createComponent(element: HTMLElement, data: any, backend: Backend, modelElementResolver: ModelElementResolver): Component {
+    const component = new Component(element, data, backend, modelElementResolver);
+
+    return new Proxy(component, {
+        get(component: Component, prop: string|symbol): any {
+            // string check is to handle symbols
+            if (prop in component || typeof prop !== 'string') {
+                if (typeof component[prop as keyof typeof component] === 'function') {
+                    const callable = component[prop as keyof typeof component] as (...args: any) => any;
+                    return function (...args: any) {
+                        return callable(...args);
+                    }
+                }
+
+                // forward to public properties
+                return Reflect.get(component, prop);
+            }
+
+            // return model
+            if (component.valueStore.has(prop)) {
+                return component.get(prop)
+            }
+
+            // try to call an action
+            return function (...args: any[]) {
+                return component.action(prop, args);
+            }
+        },
+
+        set(target: Component, property: string, value: any): boolean {
+            if (property in target) {
+
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore Ignoring potentially setting private properties
+                target[property as keyof typeof target] = value;
+
+                return true;
+            }
+
+            target.set(property, value);
+
+            return true;
+        },
+    });
+}
+
 export default class Component {
     readonly element: HTMLElement;
     private readonly backend: Backend;
