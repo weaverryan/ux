@@ -1,4 +1,4 @@
-import {getModelDirectiveFromElement} from "./dom_utils";
+import {getModelDirectiveFromElement} from "../dom_utils";
 
 export interface ModelElementResolver {
     getModelName(element: HTMLElement): string|null;

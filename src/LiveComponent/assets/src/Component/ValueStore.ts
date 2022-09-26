@@ -1,5 +1,5 @@
-import { getDeepData, setDeepData } from './data_manipulation_utils';
-import { normalizeModelName } from './string_utils';
+import { getDeepData, setDeepData } from '../data_manipulation_utils';
+import { normalizeModelName } from '../string_utils';
 
 export default class {
     updatedModels: string[] = [];

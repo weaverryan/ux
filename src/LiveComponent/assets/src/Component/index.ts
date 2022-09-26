@@ -1,5 +1,5 @@
 import Backend, {BackendAction} from '../Backend';
-import ValueStore from '../ValueStore';
+import ValueStore from './ValueStore';
 import { normalizeModelName } from '../string_utils';
 import BackendRequest from "../BackendRequest";
 import LoadingHelper from "../LoadingHelper";
@@ -7,8 +7,8 @@ import {
     getValueFromElement, htmlToElement,
 } from "../dom_utils";
 import {executeMorphdom} from "../morphdom";
-import UnsyncedInputsTracker from "../UnsyncedInputsTracker";
-import {ModelElementResolver} from "../ModelElementResolver";
+import UnsyncedInputsTracker from "./UnsyncedInputsTracker";
+import {ModelElementResolver} from "./ModelElementResolver";
 import HookManager from "../HookManager";
 
 declare const Turbo: any;
