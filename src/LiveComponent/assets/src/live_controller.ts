@@ -11,6 +11,7 @@ import {
 import Component, {createComponent} from "./Component";
 import Backend from "./Backend";
 import {DataModelElementResolver} from "./Component/ModelElementResolver";
+import LoadingHelper from "./LoadingHelper";
 
 interface UpdateModelOptions {
     dispatch?: boolean;
@@ -78,6 +79,8 @@ export default class extends Controller implements LiveController {
                 controls.shouldRender = false;
             }
         });
+        const loadingHelper = new LoadingHelper();
+        loadingHelper.attachToComponent(this.component);
 
         this.synchronizeValueOfModelFields();
     }

@@ -2,7 +2,6 @@ import {BackendAction, BackendInterface} from '../Backend';
 import ValueStore from './ValueStore';
 import { normalizeModelName } from '../string_utils';
 import BackendRequest from "../BackendRequest";
-import LoadingHelper from "../LoadingHelper";
 import {
     getValueFromElement, htmlToElement,
 } from "../dom_utils";
@@ -65,7 +64,6 @@ export default class Component {
 
     readonly valueStore: ValueStore;
     private readonly unsyncedInputsTracker: UnsyncedInputsTracker;
-    private readonly loadingHelper: LoadingHelper;
     private hooks: HookManager;
 
     defaultDebounce = 150;
@@ -92,14 +90,10 @@ export default class Component {
 
         this.valueStore = new ValueStore(data);
         this.unsyncedInputsTracker = new UnsyncedInputsTracker(element, modelElementResolver);
-        this.loadingHelper = new LoadingHelper();
         this.hooks = new HookManager();
 
         // deep clone the data
         this.snapshotOriginalData();
-        // hide "loading" elements to begin with
-        // This is done with CSS, but only for the most basic cases
-        this.loadingHelper.finishLoading(this.element);
     }
 
     connect(): void {
@@ -118,6 +112,8 @@ export default class Component {
      *
      *     * render.started: (html: string, response: Response, controls: { shouldRender: boolean }) => {}
      *     * render.finished: (component: Component) => {}
+     *     * loading.state:started (element: HTMLElement, request: BackendRequest) => {}
+     *     * loading.state:finished (element: HTMLElement) => {}
      */
     on(hookName: string, callback: (...args: any[]) => void): void {
         this.hooks.register(hookName, callback);
@@ -219,7 +215,7 @@ export default class Component {
             this.pendingActions,
             this.valueStore.updatedModels
         );
-        this.loadingHelper.startLoading(this.element, this.backendRequest);
+        this.hooks.triggerHook('loading.state:started', this.element, this.backendRequest);
 
         this.pendingActions = [];
         this.valueStore.updatedModels = [];
@@ -279,7 +275,7 @@ export default class Component {
         // remove the loading behavior now so that when we morphdom
         // "diffs" the elements, any loading differences will not cause
         // elements to appear different unnecessarily
-        this.loadingHelper.finishLoading(this.element);
+        this.hooks.triggerHook('loading.state:finished', this.element);
 
         if (!this.dispatchEvent('live:render', html, true, true)) {
             // preventDefault() was called
@@ -298,7 +294,7 @@ export default class Component {
 
         const newElement = htmlToElement(html);
         // normalize new element into non-loading state before diff
-        this.loadingHelper.finishLoading(newElement);
+        this.hooks.triggerHook('loading.state:finished', newElement);
 
         // TODO: maybe abstract where the new data comes from
         const newDataFromServer: any = JSON.parse(newElement.dataset.liveDataValue as string);

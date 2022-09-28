@@ -5,13 +5,26 @@ import {
 } from './directives_parser';
 import { combineSpacedArray}  from './string_utils';
 import BackendRequest from "./BackendRequest";
+import Component from "./Component";
 
 interface ElementLoadingDirectives {
     element: HTMLElement|SVGElement,
     directives: Directive[]
 }
 
-export default class {
+export default class LoadingHelper {
+    attachToComponent(component: Component): void {
+        component.on('loading.state:started', (element: HTMLElement, request: BackendRequest) => {
+            this.startLoading(element, request);
+        });
+        component.on('loading.state:finished', (element: HTMLElement) => {
+            this.finishLoading(element);
+        });
+        // hide "loading" elements to begin with
+        // This is done with CSS, but only for the most basic cases
+        this.finishLoading(component.element);
+    }
+
     startLoading(targetElement: HTMLElement|SVGElement, backendRequest: BackendRequest): void {
         this.handleLoadingToggle(true, targetElement, backendRequest);
     }
