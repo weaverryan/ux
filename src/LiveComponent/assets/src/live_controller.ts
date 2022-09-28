@@ -376,7 +376,7 @@ export default class extends Controller implements LiveController {
     }
 
     private initializePolling(): void {
-        this.component.stopAllPolling();
+        this.component.clearPolling();
 
         if ((this.element as HTMLElement).dataset.poll === undefined) {
             return;
@@ -401,8 +401,8 @@ export default class extends Controller implements LiveController {
                 }
             });
 
-            this.component.startPoll(directive.action, duration);
-        })
+            this.component.addPoll(directive.action, duration);
+        });
     }
 
     /**

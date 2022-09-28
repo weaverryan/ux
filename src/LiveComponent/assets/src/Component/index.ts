@@ -9,6 +9,7 @@ import {executeMorphdom} from "../morphdom";
 import UnsyncedInputsTracker from "./UnsyncedInputsTracker";
 import {ModelElementResolver} from "./ModelElementResolver";
 import HookManager from "../HookManager";
+import PollingDirectory from "../PollingDirector";
 
 declare const Turbo: any;
 
@@ -19,6 +20,7 @@ export default class Component {
     readonly valueStore: ValueStore;
     private readonly unsyncedInputsTracker: UnsyncedInputsTracker;
     private hooks: HookManager;
+    private pollingDirector: PollingDirectory;
 
     defaultDebounce = 150;
 
@@ -30,7 +32,6 @@ export default class Component {
     private isRequestPending = false;
     /** Current "timeout" before the pending request should be sent. */
     private requestDebounceTimeout: number | null = null;
-    pollingIntervals: NodeJS.Timer[] = [];
 
     /**
      * @param element The root element
@@ -45,18 +46,19 @@ export default class Component {
         this.valueStore = new ValueStore(data);
         this.unsyncedInputsTracker = new UnsyncedInputsTracker(element, modelElementResolver);
         this.hooks = new HookManager();
+        this.pollingDirector = new PollingDirectory(this);
 
         // deep clone the data
         this.snapshotOriginalData();
     }
 
     connect(): void {
-        // TODO: restart existing polls
+        this.pollingDirector.startAllPolling();
         this.unsyncedInputsTracker.activate();
     }
 
     disconnect(): void {
-        this.stopAllPolling();
+        this.pollingDirector.stopAllPolling();
         this.clearRequestDebounceTimeout();
         this.unsyncedInputsTracker.deactivate();
     }
@@ -124,32 +126,16 @@ export default class Component {
         this.tryStartingRequest();
     }
 
-    startPoll(actionName: string, duration: number) {
-        let callback: () => void;
-        if (actionName === '$render') {
-            callback = () => {
-                this.render();
-            }
-        } else {
-            callback = () => {
-                this.action(actionName, {}, 0);
-            }
-        }
-
-        const timer = setInterval(() => {
-            callback();
-        }, duration);
-        this.pollingIntervals.push(timer);
-    }
-
-    stopAllPolling(): void {
-        this.pollingIntervals.forEach((interval) => {
-            clearInterval(interval);
-        });
-    }
-
     getUnsyncedModels(): string[] {
         return this.unsyncedInputsTracker.getModifiedModels();
+    }
+
+    addPoll(actionName: string, duration: number) {
+        this.pollingDirector.addPoll(actionName, duration);
+    }
+
+    clearPolling(): void {
+        this.pollingDirector.clearPolling();
     }
 
     private tryStartingRequest(): void {
