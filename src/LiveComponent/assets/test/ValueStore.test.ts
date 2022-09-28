@@ -1,4 +1,4 @@
-import ValueStore from '../src/ValueStore';
+import ValueStore from '../src/Component/ValueStore';
 import { LiveController } from '../src/live_controller';
 
 const createStore = function(data: any) {

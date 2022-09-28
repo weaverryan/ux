@@ -73,7 +73,7 @@ export default class {
  * yet been set onto the actual model data. It is "unsynced"
  * from the underlying model data.
  */
-class UnsyncedInputContainer {
+export class UnsyncedInputContainer {
     #mappedFields: Map<string, HTMLElement>;
     #unmappedFields: Array<HTMLElement> = [];
 
