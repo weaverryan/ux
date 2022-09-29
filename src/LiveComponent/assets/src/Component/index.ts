@@ -16,6 +16,7 @@ declare const Turbo: any;
 export default class Component {
     readonly element: HTMLElement;
     private readonly backend: BackendInterface;
+    id: string|null;
 
     readonly valueStore: ValueStore;
     private readonly unsyncedInputsTracker: UnsyncedInputsTracker;
@@ -33,15 +34,20 @@ export default class Component {
     /** Current "timeout" before the pending request should be sent. */
     private requestDebounceTimeout: number | null = null;
 
+    private children: Map<string, Component> = new Map();
+    private parent: Component|null = null;
+
     /**
      * @param element The root element
      * @param data    Component data
+     * @param id      Some unique id to identify this component. Needed to be a child component
      * @param backend Backend instance for updating
      * @param modelElementResolver Class to get "model" name from any element.
      */
-    constructor(element: HTMLElement, data: any, backend: BackendInterface, modelElementResolver: ModelElementResolver) {
+    constructor(element: HTMLElement, data: any, id: string|null, backend: BackendInterface, modelElementResolver: ModelElementResolver) {
         this.element = element;
         this.backend = backend;
+        this.id = id;
 
         this.valueStore = new ValueStore(data);
         this.unsyncedInputsTracker = new UnsyncedInputsTracker(element, modelElementResolver);
@@ -136,6 +142,32 @@ export default class Component {
 
     clearPolling(): void {
         this.pollingDirector.clearPolling();
+    }
+
+    addChild(component: Component): void {
+        if (!component.id) {
+            throw new Error('Children components must have an id.');
+        }
+
+        this.children.set(component.id, component);
+        component.parent = this;
+    }
+
+    removeChild(child: Component): void {
+        if (!child.id) {
+            throw new Error('Children components must have an id.');
+        }
+
+        this.children.delete(child.id);
+        child.parent = null;
+    }
+
+    getParent(): Component|null {
+        return this.parent;
+    }
+
+    getChildren(): Map<string, Component> {
+        return new Map(this.children);
     }
 
     private tryStartingRequest(): void {
@@ -343,9 +375,16 @@ export default class Component {
     }
 }
 
-export function createComponent(element: HTMLElement, data: any, backend: BackendInterface, modelElementResolver: ModelElementResolver): Component {
-    const component = new Component(element, data, backend, modelElementResolver);
-
+/**
+ * Makes the Component feel more like a JS-version of the PHP component:
+ *
+ *      // set model like properties
+ *      component.firstName = 'Ryan';
+ *
+ *      // call a live action called "saveStatus" with a "status" arg
+ *      component.saveStatus({ status: 'published' });
+ */
+export function proxifyComponent(component: Component): Component {
     return new Proxy(component, {
         get(component: Component, prop: string|symbol): any {
             // string check is to handle symbols
