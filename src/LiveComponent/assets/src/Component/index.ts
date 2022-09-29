@@ -25,7 +25,6 @@ export default class Component {
 
     defaultDebounce = 150;
 
-    private originalData = {};
     private backendRequest: BackendRequest|null;
     /** Actions that are waiting to be executed */
     private pendingActions: BackendAction[] = [];
@@ -53,9 +52,6 @@ export default class Component {
         this.unsyncedInputsTracker = new UnsyncedInputsTracker(element, modelElementResolver);
         this.hooks = new HookManager();
         this.pollingDirector = new PollingDirectory(this);
-
-        // deep clone the data
-        this.snapshotOriginalData();
     }
 
     connect(): void {
@@ -268,15 +264,9 @@ export default class Component {
             newElement,
             this.unsyncedInputsTracker.getUnsyncedInputs(),
             (element: HTMLElement) => getValueFromElement(element, this.valueStore),
-            this.originalData,
-            this.valueStore.all(),
-            newDataFromServer
         );
         // TODO: could possibly do this by listening to the dataValue value change
         this.valueStore.reinitialize(newDataFromServer);
-
-        // take a new snapshot of the "original data"
-        this.snapshotOriginalData();
 
         // reset the modified values back to their client-side version
         Object.keys(modifiedModelValues).forEach((modelName) => {
@@ -292,10 +282,6 @@ export default class Component {
             cancelable,
             detail: payload
         }));
-    }
-
-    private snapshotOriginalData() {
-        this.originalData = JSON.parse(JSON.stringify(this.valueStore.all()));
     }
 
     private caculateDebounce(debounce: number|boolean): number {
