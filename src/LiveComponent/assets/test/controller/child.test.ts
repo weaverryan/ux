@@ -141,40 +141,39 @@ describe('LiveController parent -> child component tests', () => {
         expect(test.component.getChildren().size).toEqual(1);
     });
 
-    // it('existing child component that has no props is ignored', async () => {
-    //     const originalChild = `
-    //         <div ${initComponent({}, {}, {id: 'the-child-id'})} data-testid="child">
-    //             Child Component
-    //         </div>
-    //     `;
-    //     const updatedChild = `
-    //         <div ${initComponent({}, {}, {id: 'the-child-id'})} data-testid="child">
-    //             Child Component
-    //         </div>
-    //     `;
-    //
-    //     const test = await createTest({useOriginalChild: true}, (data: any) => `
-    //        <div ${initComponent(data)}>
-    //            ${data.useUpdatedChild ? originalChild : updatedChild}
-    //        </div>
-    //    `);
-    //
-    //     test.expectsAjaxCall('get')
-    //         .expectSentData(test.initialData)
-    //         .serverWillChangeData((data: any) => {
-    //             data.renderChild = true;
-    //         })
-    //         .init();
-    //
-    //     expect(test.element).not.toHaveTextContent('Child Component')
-    //     expect(test.component.getChildren().size).toEqual(0);
-    //     test.component.render();
-    //     // wait for child to disappear
-    //     await waitFor(() => expect(test.element).toHaveAttribute('busy'));
-    //     await waitFor(() => expect(test.element).not.toHaveAttribute('busy'));
-    //     expect(test.element).toHaveTextContent('Child Component')
-    //     expect(test.component.getChildren().size).toEqual(1);
-    // });
+    it('existing child component that has no props is ignored', async () => {
+        const originalChild = `
+            <div ${initComponent({}, {}, {id: 'the-child-id'})}>
+                Original Child Component
+            </div>
+        `;
+        const updatedChild = `
+            <div ${initComponent({}, {}, {id: 'the-child-id'})}>
+                Updated Child Component
+            </div>
+        `;
+
+        const test = await createTest({useOriginalChild: true}, (data: any) => `
+           <div ${initComponent(data)}>
+               ${data.useOriginalChild ? originalChild : updatedChild}
+           </div>
+       `);
+
+        test.expectsAjaxCall('get')
+            .expectSentData(test.initialData)
+            .serverWillChangeData((data: any) => {
+                data.renderChild = true;
+            })
+            .init();
+
+        expect(test.element).toHaveTextContent('Original Child Component')
+        test.component.render();
+        // wait for Ajax call
+        await waitFor(() => expect(test.element).toHaveAttribute('busy'));
+        await waitFor(() => expect(test.element).not.toHaveAttribute('busy'));
+        // child component is STILL here: the new rendering was ignored
+        expect(test.element).toHaveTextContent('Original Child Component')
+    });
 
 
     // TODO: response comes back with existing child element but no props, child is untouched

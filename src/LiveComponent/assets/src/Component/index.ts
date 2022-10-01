@@ -277,6 +277,7 @@ export default class Component {
             newElement,
             this.unsyncedInputsTracker.getUnsyncedInputs(),
             (element: HTMLElement) => getValueFromElement(element, this.valueStore),
+            Array.from(this.getChildren().values())
         );
         // TODO: could possibly do this by listening to the dataValue value change
         this.valueStore.reinitializeData(newDataFromServer);

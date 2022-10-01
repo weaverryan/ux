@@ -1,27 +1,51 @@
 import {
-cloneHTMLElement,
+    cloneHTMLElement,
     setValueOnElement
-} from "./dom_utils";
-import morphdom from "morphdom";
-import { normalizeAttributesForComparison } from "./normalize_attributes_for_comparison";
+} from './dom_utils';
+import morphdom from 'morphdom';
+import {
+    normalizeAttributesForComparison
+} from './normalize_attributes_for_comparison';
+import Component from './Component';
 
 export function executeMorphdom(
     rootFromElement: HTMLElement,
     rootToElement: HTMLElement,
     modifiedElements: Array<HTMLElement>,
     getElementValue: (element: HTMLElement) => any,
+    childComponents: Component[],
 ) {
-    // make sure everything is in non-loading state, the same as the HTML currently on the page
+    const childComponentMap = new Map();
+    childComponents.forEach((childComponent) => {
+        childComponentMap.set(childComponent.element, childComponent);
+    });
+
     morphdom(rootFromElement, rootToElement, {
         getNodeKey: (node: Node) => {
-          if (!(node instanceof HTMLElement)) {
-              return;
-          }
+            if (!(node instanceof HTMLElement)) {
+                return;
+            }
 
-          return node.dataset.liveId;
+            // TODO: abstract out to make this function agnostic of markup
+            if (node.dataset.liveId) {
+                return node.dataset.liveId;
+            }
+
+            // do we really need data-live-id and data-live-value-id?
+            return node.dataset.liveIdValue
         },
         onBeforeElUpdated: (fromEl, toEl) => {
+            if (fromEl === rootFromElement) {
+                return true;
+            }
+
             if (!(fromEl instanceof HTMLElement) || !(toEl instanceof HTMLElement)) {
+                return false;
+            }
+
+            if (childComponentMap.has(fromEl)) {
+                // this is a child component
+                // TODO: finish this!
                 return false;
             }
 
@@ -45,16 +69,6 @@ export function executeMorphdom(
                     // don't bother updating
                     return false;
                 }
-            }
-
-            // avoid updating child components: they will handle themselves
-            const controllerName = fromEl.hasAttribute('data-controller') ? fromEl.getAttribute('data-controller') : null;
-            if (controllerName
-                && controllerName.split(' ').indexOf('live') !== -1
-                && fromEl !== rootFromElement
-            ) {
-                // TODO: add new child logic here
-                return false;
             }
 
             // look for data-live-ignore, and don't update
