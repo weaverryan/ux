@@ -17,6 +17,8 @@ fetchMock.catch((url: string, response: any) => {
         body: response.body,
         headers: response.headers,
     });
+
+    return response;
 });
 
 let application: Application;
