@@ -178,6 +178,32 @@ export default class Component {
         return new Map(this.children);
     }
 
+    updateFromNewElement(toEl: HTMLElement): boolean {
+        // TODO: need a driver here to be agnostic of markup
+        const propsString = toEl.dataset.livePropsValue;
+
+        // if no props are on the element, use the existing element completely
+        // this means the parent is signaling that the child does not need to be re-rendered
+        if (propsString === undefined) {
+            return false;
+        }
+
+        // push props directly down onto the value store
+        const props = JSON.parse(propsString);
+        const isChanged = this.valueStore.reinitializeProps(props);
+
+        const fingerprint = toEl.dataset.liveFingerprintValue;
+        if (fingerprint !== undefined) {
+            this.fingerprint = fingerprint;
+        }
+
+        if (isChanged) {
+            this.render();
+        }
+
+        return false;
+    }
+
     private tryStartingRequest(): void {
         if (!this.backendRequest) {
             this.performRequest()

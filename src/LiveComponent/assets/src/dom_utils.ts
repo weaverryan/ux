@@ -1,7 +1,7 @@
 import ValueStore from './Component/ValueStore';
 import { Directive, parseDirectives } from './directives_parser';
 import { normalizeModelName } from './string_utils';
-import Component from "./Component";
+import Component from './Component';
 
 /**
  * Return the "value" of any given element.

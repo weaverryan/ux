@@ -15,7 +15,7 @@ export function executeMorphdom(
     getElementValue: (element: HTMLElement) => any,
     childComponents: Component[],
 ) {
-    const childComponentMap = new Map();
+    const childComponentMap: Map<HTMLElement, Component> = new Map();
     childComponents.forEach((childComponent) => {
         childComponentMap.set(childComponent.element, childComponent);
     });
@@ -43,10 +43,9 @@ export function executeMorphdom(
                 return false;
             }
 
-            if (childComponentMap.has(fromEl)) {
-                // this is a child component
-                // TODO: finish this!
-                return false;
+            const childComponent = childComponentMap.get(fromEl) || false
+            if (childComponent) {
+                return childComponent.updateFromNewElement(toEl);
             }
 
             // if this field's value has been modified since this HTML was
