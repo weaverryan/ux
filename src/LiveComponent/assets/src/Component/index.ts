@@ -324,7 +324,7 @@ export default class Component {
         }));
     }
 
-    private caculateDebounce(debounce: number|boolean): number {
+    private calculateDebounce(debounce: number|boolean): number {
         if (debounce === true) {
             return this.defaultDebounce;
         }
@@ -347,7 +347,7 @@ export default class Component {
         this.clearRequestDebounceTimeout();
         this.requestDebounceTimeout = window.setTimeout(() => {
             this.render();
-        }, this.caculateDebounce(debounce));
+        }, this.calculateDebounce(debounce));
     }
 
     // inspired by Livewire!
