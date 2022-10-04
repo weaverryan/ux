@@ -256,7 +256,6 @@ describe('LiveController parent -> child component tests', () => {
         // E) Expect the child to re-render
         // after the parent Ajax call has finished, but shortly before it's
         // done processing, the child component should start its own Aja call
-        // TODO make this work for the child
         childTest.expectsAjaxCall('get')
             // expect the modified firstName data
             // expect the new prop
@@ -282,8 +281,68 @@ describe('LiveController parent -> child component tests', () => {
         expect(childElement).toHaveTextContent('Full Name: RYAN WEAVER')
     });
 
-    // TODO: response comes back with empty child element BUT with new fingerprint & props, those are pushed down onto the child, which will trigger a re-render
-        // TODO: check above situation mixing element types - e.g. span vs div
-        // TODO: check that data-live-id could be used to remove old component and use new component entirely, with fresh data
-        // TODO: multiple children, even if they change position, are correctly handled
+    it('existing child gets new props even though the element type differs', async () => {
+        const realChildTemplate = (data: any) => `
+            <span ${initComponent({}, { prop1: data.prop1 }, { id: 'child-id' })} data-testid="child-component">
+                Child prop1: ${data.prop1}
+            </span>
+        `;
+        // the empty-ish child element used on re-render
+        const parentReRenderedChildTemplate = (data: any) => `
+            <div ${initComponent({}, { prop1: data.prop1 }, { id: 'child-id' })} data-testid="child-component"></div>
+        `;
+
+        const test = await createTest({prop1: 'original_prop', useRealChild: true}, (data: any) => `
+           <div ${initComponent(data)}>
+               Parent Component
+               ${data.useRealChild ? realChildTemplate({data}) : parentReRenderedChildTemplate(data)}
+           </div>
+       `);
+
+        const childElement = getByTestId(test.element, 'child-component');
+        // @ts-ignore
+        const childComponent = childElement.__component;
+        if (!(childComponent instanceof Component)) {
+            throw new Error('missing component');
+        }
+        // just used to mock the Ajax call
+        const childTest = createTestForExistingComponent(childComponent);
+
+        // Re-render the parent
+        test.expectsAjaxCall('get')
+            .expectSentData(test.initialData)
+            .serverWillChangeData((data: any) => {
+                // change the child prop
+                data.prop1 = 'updated_prop';
+                // re-render the "fake" component with a different tag
+                data.useRealChild = false;
+            })
+            .init();
+        test.component.render();
+        // wait for parent Ajax call to start
+        await waitFor(() => expect(test.element).toHaveAttribute('busy'));
+
+        // Expect the child to re-render
+        childTest.expectsAjaxCall('get')
+            // expect the new prop
+            .expectSentData({ prop1: 'updated_prop' })
+            .willReturn(realChildTemplate)
+            .init();
+
+        // wait for parent Ajax call to finish
+        await waitFor(() => expect(test.element).not.toHaveAttribute('busy'));
+        // wait for child to start and stop loading
+        await waitFor(() => expect(childElement).toHaveAttribute('busy'));
+        await waitFor(() => expect(childElement).not.toHaveAttribute('busy'));
+
+        // child component re-rendered successfully
+        // re-grabbing child-component fresh to prove it's not stale
+        const childElement2 = getByTestId(test.element, 'child-component');
+        expect(childElement2).toHaveTextContent('Child prop1: updated_prop')
+        // it should still be a span, even though the initial re-render was a div
+        expect(childElement2.tagName).toEqual('SPAN');
+    });
+
+    // TODO: check that data-live-id could be used to remove old component and use new component entirely, with fresh data
+    // TODO: multiple children, even if they change position, are correctly handled
 });

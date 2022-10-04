@@ -1,4 +1,5 @@
 import {
+    cloneElementWithNewTagName,
     cloneHTMLElement,
     setValueOnElement
 } from './dom_utils';
@@ -18,6 +19,14 @@ export function executeMorphdom(
     const childComponentMap: Map<HTMLElement, Component> = new Map();
     childComponents.forEach((childComponent) => {
         childComponentMap.set(childComponent.element, childComponent);
+        // TODO: add driver to make this agnostic
+        const childComponentToElement = rootToElement.querySelector(`[data-live-id-value=${childComponent.id}]`)
+        if (childComponentToElement && childComponentToElement.tagName !== childComponent.element.tagName) {
+            // we need to "correct" the tag name for the child to match the "from"
+            // so that we always get a "diff", not a remove/add
+            const newTag = cloneElementWithNewTagName(childComponentToElement, childComponent.element.tagName);
+            rootToElement.replaceChild(newTag, childComponentToElement);
+        }
     });
 
     morphdom(rootFromElement, rootToElement, {
@@ -31,7 +40,7 @@ export function executeMorphdom(
                 return node.dataset.liveId;
             }
 
-            // do we really need data-live-id and data-live-value-id?
+            // TODO: do we really need data-live-id and data-live-value-id?
             return node.dataset.liveIdValue
         },
         onBeforeElUpdated: (fromEl, toEl) => {
