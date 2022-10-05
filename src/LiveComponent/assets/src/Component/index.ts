@@ -7,7 +7,7 @@ import {
 } from '../dom_utils';
 import {executeMorphdom} from '../morphdom';
 import UnsyncedInputsTracker from './UnsyncedInputsTracker';
-import {ModelElementResolver} from './ModelElementResolver';
+import {ElementDriver} from './ElementDriver';
 import HookManager from '../HookManager';
 import PollingDirectory from '../PollingDirector';
 
@@ -16,6 +16,7 @@ declare const Turbo: any;
 export default class Component {
     readonly element: HTMLElement;
     private readonly backend: BackendInterface;
+    private readonly elementDriver: ElementDriver;
     id: string|null;
 
     /**
@@ -52,16 +53,17 @@ export default class Component {
      * @param fingerprint
      * @param id      Some unique id to identify this component. Needed to be a child component
      * @param backend Backend instance for updating
-     * @param modelElementResolver Class to get "model" name from any element.
+     * @param elementDriver Class to get "model" name from any element.
      */
-    constructor(element: HTMLElement, props: any, data: any, fingerprint: string|null, id: string|null, backend: BackendInterface, modelElementResolver: ModelElementResolver) {
+    constructor(element: HTMLElement, props: any, data: any, fingerprint: string|null, id: string|null, backend: BackendInterface, elementDriver: ElementDriver) {
         this.element = element;
         this.backend = backend;
+        this.elementDriver = elementDriver;
         this.id = id;
         this.fingerprint = fingerprint;
 
         this.valueStore = new ValueStore(props, data);
-        this.unsyncedInputsTracker = new UnsyncedInputsTracker(this, modelElementResolver);
+        this.unsyncedInputsTracker = new UnsyncedInputsTracker(this, elementDriver);
         this.hooks = new HookManager();
         this.pollingDirector = new PollingDirectory(this);
     }
@@ -179,17 +181,15 @@ export default class Component {
     }
 
     updateFromNewElement(toEl: HTMLElement): boolean {
-        // TODO: need a driver here to be agnostic of markup
-        const propsString = toEl.dataset.livePropsValue;
+        const props = this.elementDriver.getComponentProps(toEl);
 
         // if no props are on the element, use the existing element completely
         // this means the parent is signaling that the child does not need to be re-rendered
-        if (propsString === undefined) {
+        if (props === null) {
             return false;
         }
 
         // push props directly down onto the value store
-        const props = JSON.parse(propsString);
         const isChanged = this.valueStore.reinitializeProps(props);
 
         const fingerprint = toEl.dataset.liveFingerprintValue;
@@ -296,8 +296,7 @@ export default class Component {
         // normalize new element into non-loading state before diff
         this.hooks.triggerHook('loading.state:finished', newElement);
 
-        // TODO: maybe abstract where the new data comes from
-        const newDataFromServer: any = JSON.parse(newElement.dataset.liveDataValue as string);
+        this.valueStore.reinitializeData(this.elementDriver.getComponentData(newElement));
         executeMorphdom(
             this.element,
             newElement,
@@ -305,8 +304,6 @@ export default class Component {
             (element: HTMLElement) => getValueFromElement(element, this.valueStore),
             Array.from(this.getChildren().values())
         );
-        // TODO: could possibly do this by listening to the dataValue value change
-        this.valueStore.reinitializeData(newDataFromServer);
 
         // reset the modified values back to their client-side version
         Object.keys(modifiedModelValues).forEach((modelName) => {

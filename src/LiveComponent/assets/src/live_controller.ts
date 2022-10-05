@@ -11,8 +11,8 @@ import {
 import Component, {proxifyComponent} from './Component';
 import Backend from './Backend';
 import {
-    DataModelElementResolver,
-} from './Component/ModelElementResolver';
+    StandardElementDriver,
+} from './Component/ElementDriver';
 import LoadingHelper from './LoadingHelper';
 
 interface UpdateModelOptions {
@@ -80,7 +80,7 @@ export default class extends Controller<HTMLElement> implements LiveController {
             this.fingerprintValue,
             id,
             new Backend(this.urlValue, this.csrfValue),
-            new DataModelElementResolver(),
+            new StandardElementDriver(),
         );
         this.proxiedComponent = proxifyComponent(this.component);
 
