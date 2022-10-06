@@ -96,6 +96,7 @@ export default class extends Controller<HTMLElement> implements LiveController {
             this.synchronizeValueOfModelFields();
 
             // re-start polling, in case polling changed
+            // TODO: moving polling to plugin
             this.initializePolling();
         });
         this.component.on('render:started', (html: string, response: Response, controls: { shouldRender: boolean }) => {
@@ -451,7 +452,6 @@ export default class extends Controller<HTMLElement> implements LiveController {
      * This method will set the "value" of that element to the value of
      * the "firstName" model.
      */
-    // TODO: call this when needed
     synchronizeValueOfModelFields(): void {
         this.component.element.querySelectorAll('[data-model]').forEach((element: Element) => {
             if (!(element instanceof HTMLElement)) {
