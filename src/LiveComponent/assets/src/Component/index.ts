@@ -299,14 +299,6 @@ export default class Component {
         this.hooks.triggerHook('render:finished', this);
     }
 
-    private dispatchEvent(name: string, payload: any = null, canBubble = true, cancelable = false) {
-        return this.element.dispatchEvent(new CustomEvent(name, {
-            bubbles: canBubble,
-            cancelable,
-            detail: payload
-        }));
-    }
-
     private calculateDebounce(debounce: number|boolean): number {
         if (debounce === true) {
             return this.defaultDebounce;
