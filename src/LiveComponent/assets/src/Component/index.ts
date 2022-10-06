@@ -268,12 +268,6 @@ export default class Component {
         // elements to appear different unnecessarily
         this.hooks.triggerHook('loading.state:finished', this.element);
 
-        // TODO: change this to a hook for consistency?
-        if (!this.dispatchEvent('live:render', html, true, true)) {
-            // preventDefault() was called
-            return;
-        }
-
         /**
          * For any models modified since the last request started, grab
          * their value now: we will re-set them after the new data from
