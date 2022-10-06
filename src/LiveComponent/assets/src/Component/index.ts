@@ -9,7 +9,6 @@ import {executeMorphdom} from '../morphdom';
 import UnsyncedInputsTracker from './UnsyncedInputsTracker';
 import {ElementDriver} from './ElementDriver';
 import HookManager from '../HookManager';
-import PollingDirectory from '../PollingDirector';
 
 declare const Turbo: any;
 
@@ -31,7 +30,6 @@ export default class Component {
     readonly valueStore: ValueStore;
     private readonly unsyncedInputsTracker: UnsyncedInputsTracker;
     private hooks: HookManager;
-    private pollingDirector: PollingDirectory;
 
     defaultDebounce = 150;
 
@@ -65,18 +63,15 @@ export default class Component {
         this.valueStore = new ValueStore(props, data);
         this.unsyncedInputsTracker = new UnsyncedInputsTracker(this, elementDriver);
         this.hooks = new HookManager();
-        this.pollingDirector = new PollingDirectory(this);
     }
 
     connect(): void {
         this.hooks.triggerHook('connect', this);
-        this.pollingDirector.startAllPolling();
         this.unsyncedInputsTracker.activate();
     }
 
     disconnect(): void {
         this.hooks.triggerHook('disconnect', this);
-        this.pollingDirector.stopAllPolling();
         this.clearRequestDebounceTimeout();
         this.unsyncedInputsTracker.deactivate();
     }
@@ -139,14 +134,6 @@ export default class Component {
 
     getUnsyncedModels(): string[] {
         return this.unsyncedInputsTracker.getModifiedModels();
-    }
-
-    addPoll(actionName: string, duration: number) {
-        this.pollingDirector.addPoll(actionName, duration);
-    }
-
-    clearPolling(): void {
-        this.pollingDirector.clearPolling();
     }
 
     addChild(component: Component): void {

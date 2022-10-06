@@ -15,7 +15,8 @@ import {
 } from './Component/ElementDriver';
 import LoadingPlugin from './Component/plugins/LoadingPlugin';
 import ValidatedFieldsPlugin from './Component/plugins/ValidatedFieldsPlugin';
-import PageUnloadingPlugin from "./Component/plugins/PageUnloadingPlugin";
+import PageUnloadingPlugin from './Component/plugins/PageUnloadingPlugin';
+import PollingPlugin from "./Component/plugins/PollingPlugin";
 
 interface UpdateModelOptions {
     dispatch?: boolean;
@@ -91,11 +92,8 @@ export default class extends Controller<HTMLElement> implements LiveController {
         // after we finish rendering, re-set the "value" of model fields
         this.component.on('render:finished', () => {
             this.synchronizeValueOfModelFields();
-
-            // re-start polling, in case polling changed
-            // TODO: moving polling to plugin
-            this.initializePolling();
         });
+        // TODO: formalize the plugin system
         const loadingHelper = new LoadingPlugin();
         loadingHelper.attachToComponent(this.component);
 
@@ -105,12 +103,14 @@ export default class extends Controller<HTMLElement> implements LiveController {
         const pageUnloadingPlugin = new PageUnloadingPlugin();
         pageUnloadingPlugin.attachToComponent(this.component);
 
+        const pollingPlugin = new PollingPlugin();
+        pollingPlugin.attachToComponent(this.component);
+
         this.synchronizeValueOfModelFields();
     }
 
     connect() {
         this.component.connect();
-        this.initializePolling();
 
         this.elementEventListeners.forEach(({event, callback}) => {
             this.component.element.addEventListener(event, callback);
@@ -398,35 +398,7 @@ export default class extends Controller<HTMLElement> implements LiveController {
         }));
     }
 
-    private initializePolling(): void {
-        this.component.clearPolling();
 
-        if ((this.element as HTMLElement).dataset.poll === undefined) {
-            return;
-        }
-
-        const rawPollConfig = (this.element as HTMLElement).dataset.poll;
-        const directives = parseDirectives(rawPollConfig || '$render');
-
-        directives.forEach((directive) => {
-            let duration = 2000;
-
-            directive.modifiers.forEach((modifier) => {
-                switch (modifier.name) {
-                    case 'delay':
-                        if (modifier.value) {
-                            duration = parseInt(modifier.value);
-                        }
-
-                         break;
-                    default:
-                        console.warn(`Unknown modifier "${modifier.name}" in data-poll "${rawPollConfig}".`);
-                }
-            });
-
-            this.component.addPoll(directive.action, duration);
-        });
-    }
 
     /**
      * Sets the "value" of all model fields to the component data.
