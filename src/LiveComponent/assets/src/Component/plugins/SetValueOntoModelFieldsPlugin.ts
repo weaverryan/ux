@@ -4,11 +4,12 @@ import {
     getValueFromElement,
     setValueOnElement
 } from '../../dom_utils';
+import { PluginInterface } from './PluginInterface';
 
 /**
  * Handles setting the "value" onto data-model fields automatically from the data store.
  */
-export default class {
+export default class implements PluginInterface {
     attachToComponent(component: Component): void {
         this.synchronizeValueOfModelFields(component);
         component.on('render:finished', () => {

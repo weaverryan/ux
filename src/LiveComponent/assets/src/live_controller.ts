@@ -15,6 +15,7 @@ import ValidatedFieldsPlugin from './Component/plugins/ValidatedFieldsPlugin';
 import PageUnloadingPlugin from './Component/plugins/PageUnloadingPlugin';
 import PollingPlugin from './Component/plugins/PollingPlugin';
 import SetValueOntoModelFieldsPlugin from './Component/plugins/SetValueOntoModelFieldsPlugin';
+import {PluginInterface} from './Component/plugins/PluginInterface';
 
 interface UpdateModelOptions {
     dispatch?: boolean;
@@ -65,7 +66,6 @@ export default class extends Controller<HTMLElement> implements LiveController {
      ];
 
     initialize() {
-        // TODO / fix/replace all of this
         this.handleDisconnectedChildControllerEvent = this.handleDisconnectedChildControllerEvent.bind(this);
 
         const id = this.element.dataset.liveId || null;
@@ -88,21 +88,16 @@ export default class extends Controller<HTMLElement> implements LiveController {
             this.component.defaultDebounce = this.debounceValue;
         }
 
-        // TODO: formalize the plugin system
-        const loadingHelper = new LoadingPlugin();
-        loadingHelper.attachToComponent(this.component);
-
-        const validatedFieldsPlugin = new ValidatedFieldsPlugin();
-        validatedFieldsPlugin.attachToComponent(this.component);
-
-        const pageUnloadingPlugin = new PageUnloadingPlugin();
-        pageUnloadingPlugin.attachToComponent(this.component);
-
-        const pollingPlugin = new PollingPlugin();
-        pollingPlugin.attachToComponent(this.component);
-
-        const setValueOntoModelFieldsPlugin = new SetValueOntoModelFieldsPlugin();
-        setValueOntoModelFieldsPlugin.attachToComponent(this.component);
+        const plugins: PluginInterface[] = [
+            new LoadingPlugin(),
+            new ValidatedFieldsPlugin(),
+            new PageUnloadingPlugin(),
+            new PollingPlugin(),
+            new SetValueOntoModelFieldsPlugin(),
+        ];
+        plugins.forEach((plugin) => {
+            this.component.addPlugin(plugin);
+        });
     }
 
     connect() {
@@ -111,14 +106,6 @@ export default class extends Controller<HTMLElement> implements LiveController {
         this.elementEventListeners.forEach(({event, callback}) => {
             this.component.element.addEventListener(event, callback);
         });
-
-        // hide "loading" elements to begin with
-        // This is done with CSS, but only for the most basic cases
-
-        // helps typescript be sure this is an HTMLElement, not just Element
-        if (!(this.element instanceof HTMLElement)) {
-            throw new Error('Invalid Element Type');
-        }
 
         this._dispatchEvent('live:connect');
     }

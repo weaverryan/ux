@@ -7,8 +7,9 @@ import {
 } from '../dom_utils';
 import {executeMorphdom} from '../morphdom';
 import UnsyncedInputsTracker from './UnsyncedInputsTracker';
-import {ElementDriver} from './ElementDriver';
+import { ElementDriver } from './ElementDriver';
 import HookManager from '../HookManager';
+import { PluginInterface } from './plugins/PluginInterface';
 
 declare const Turbo: any;
 
@@ -30,6 +31,7 @@ export default class Component {
     readonly valueStore: ValueStore;
     private readonly unsyncedInputsTracker: UnsyncedInputsTracker;
     private hooks: HookManager;
+
 
     defaultDebounce = 150;
 
@@ -63,6 +65,10 @@ export default class Component {
         this.valueStore = new ValueStore(props, data);
         this.unsyncedInputsTracker = new UnsyncedInputsTracker(this, elementDriver);
         this.hooks = new HookManager();
+    }
+
+    addPlugin(plugin: PluginInterface) {
+        plugin.attachToComponent(this);
     }
 
     connect(): void {

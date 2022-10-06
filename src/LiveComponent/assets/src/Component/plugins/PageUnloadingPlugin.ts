@@ -1,6 +1,7 @@
 import Component from '../index';
+import { PluginInterface } from './PluginInterface';
 
-export default class {
+export default class implements PluginInterface {
     private isWindowUnloaded = false;
     private isListening = false;
 
@@ -9,8 +10,6 @@ export default class {
     }
 
     attachToComponent(component: Component): void {
-        this.attachListener();
-
         component.on('render:started', (html: string, response: Response, controls: { shouldRender: boolean }) => {
             if (this.isWindowUnloaded) {
                 controls.shouldRender = false;
