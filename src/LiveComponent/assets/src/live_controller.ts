@@ -176,14 +176,12 @@ export default class extends Controller<HTMLElement> implements LiveController {
 
             this.component.action(directive.action, directive.named, debounce);
 
-            // TODO: fix this
             // possible case where this element is also a "model" element
             // if so, to be safe, slightly delay the action so that the
             // change/input listener on LiveController can process the
             // model change *before* sending the action
             if (getModelDirectiveFromElement(event.currentTarget, false)) {
                 this.pendingActionTriggerModelElement = event.currentTarget;
-                //this.#clearRequestDebounceTimeout();
             }
         })
     }
