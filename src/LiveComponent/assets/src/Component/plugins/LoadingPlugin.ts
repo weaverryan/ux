@@ -12,7 +12,7 @@ interface ElementLoadingDirectives {
     directives: Directive[]
 }
 
-export default class LoadingPlugin {
+export default class {
     attachToComponent(component: Component): void {
         component.on('loading.state:started', (element: HTMLElement, request: BackendRequest) => {
             this.startLoading(element, request);

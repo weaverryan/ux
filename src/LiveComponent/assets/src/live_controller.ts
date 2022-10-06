@@ -15,6 +15,7 @@ import {
 } from './Component/ElementDriver';
 import LoadingPlugin from './Component/plugins/LoadingPlugin';
 import ValidatedFieldsPlugin from './Component/plugins/ValidatedFieldsPlugin';
+import PageUnloadingPlugin from "./Component/plugins/PageUnloadingPlugin";
 
 interface UpdateModelOptions {
     dispatch?: boolean;
@@ -56,8 +57,6 @@ export default class extends Controller<HTMLElement> implements LiveController {
     private proxiedComponent: Component;
     /** The raw Component object */
     component: Component;
-
-    isWindowUnloaded = false;
     pendingActionTriggerModelElement: HTMLElement|null = null;
 
     private elementEventListeners: Array<{ event: string, callback: (event: any) => void }> = [
@@ -68,7 +67,6 @@ export default class extends Controller<HTMLElement> implements LiveController {
 
     initialize() {
         // TODO / fix/replace all of this
-        this.markAsWindowUnloaded = this.markAsWindowUnloaded.bind(this);
         this.handleDisconnectedChildControllerEvent = this.handleDisconnectedChildControllerEvent.bind(this);
 
         const id = this.element.dataset.liveId || null;
@@ -98,16 +96,14 @@ export default class extends Controller<HTMLElement> implements LiveController {
             // TODO: moving polling to plugin
             this.initializePolling();
         });
-        this.component.on('render:started', (html: string, response: Response, controls: { shouldRender: boolean }) => {
-            if (this.isWindowUnloaded) {
-                controls.shouldRender = false;
-            }
-        });
         const loadingHelper = new LoadingPlugin();
         loadingHelper.attachToComponent(this.component);
 
         const validatedFieldsPlugin = new ValidatedFieldsPlugin();
         validatedFieldsPlugin.attachToComponent(this.component);
+
+        const pageUnloadingPlugin = new PageUnloadingPlugin();
+        pageUnloadingPlugin.attachToComponent(this.component);
 
         this.synchronizeValueOfModelFields();
     }
@@ -128,8 +124,6 @@ export default class extends Controller<HTMLElement> implements LiveController {
             throw new Error('Invalid Element Type');
         }
 
-        window.addEventListener('beforeunload', this.markAsWindowUnloaded);
-
         this._dispatchEvent('live:connect');
     }
 
@@ -139,8 +133,6 @@ export default class extends Controller<HTMLElement> implements LiveController {
         this.elementEventListeners.forEach(({event, callback}) => {
             this.component.element.removeEventListener(event, callback);
         });
-
-        window.removeEventListener('beforeunload', this.markAsWindowUnloaded);
 
         this._dispatchEvent('live:disconnect');
     }
@@ -359,10 +351,6 @@ export default class extends Controller<HTMLElement> implements LiveController {
 
         this.component.set(modelDirective.action, finalValue, shouldRender, debounce);
     }
-
-    markAsWindowUnloaded = () => {
-        this.isWindowUnloaded = true;
-    };
 
     handleConnectedControllerEvent(event: LiveEvent) {
         if (event.target === this.element) {

@@ -69,11 +69,13 @@ export default class Component {
     }
 
     connect(): void {
+        this.hooks.triggerHook('connect', this);
         this.pollingDirector.startAllPolling();
         this.unsyncedInputsTracker.activate();
     }
 
     disconnect(): void {
+        this.hooks.triggerHook('disconnect', this);
         this.pollingDirector.stopAllPolling();
         this.clearRequestDebounceTimeout();
         this.unsyncedInputsTracker.deactivate();
@@ -82,11 +84,13 @@ export default class Component {
     /**
      * Add a named hook to the component. Available hooks are:
      *
+     *     * connect (component: Component) => {}
+     *     * disconnect (component: Component) => {}
      *     * render:started (html: string, response: Response, controls: { shouldRender: boolean }) => {}
      *     * render:finished (component: Component) => {}
      *     * loading.state:started (element: HTMLElement, request: BackendRequest) => {}
      *     * loading.state:finished (element: HTMLElement) => {}
-     *     * model:set (model, value) => {}
+     *     * model:set (model: string, value: any) => {}
      */
     on(hookName: string, callback: (...args: any[]) => void): void {
         this.hooks.register(hookName, callback);
