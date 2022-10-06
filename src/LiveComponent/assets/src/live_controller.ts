@@ -14,6 +14,7 @@ import {
     StandardElementDriver,
 } from './Component/ElementDriver';
 import LoadingHelper from './LoadingHelper';
+import ValidatedFieldsPlugin from "./Component/plugins/ValidatedFieldsPlugin";
 
 interface UpdateModelOptions {
     dispatch?: boolean;
@@ -91,19 +92,22 @@ export default class extends Controller<HTMLElement> implements LiveController {
             this.component.defaultDebounce = this.debounceValue;
         }
         // after we finish rendering, re-set the "value" of model fields
-        this.component.on('render.finished', () => {
+        this.component.on('render:finished', () => {
             this.synchronizeValueOfModelFields();
 
             // re-start polling, in case polling changed
             this.initializePolling();
         });
-        this.component.on('render.started', (html: string, response: Response, controls: { shouldRender: boolean }) => {
+        this.component.on('render:started', (html: string, response: Response, controls: { shouldRender: boolean }) => {
             if (this.isWindowUnloaded) {
                 controls.shouldRender = false;
             }
         });
         const loadingHelper = new LoadingHelper();
         loadingHelper.attachToComponent(this.component);
+
+        const validatedFieldsPlugin = new ValidatedFieldsPlugin();
+        validatedFieldsPlugin.attachToComponent(this.component);
 
         this.synchronizeValueOfModelFields();
     }

@@ -82,10 +82,11 @@ export default class Component {
     /**
      * Add a named hook to the component. Available hooks are:
      *
-     *     * render.started: (html: string, response: Response, controls: { shouldRender: boolean }) => {}
-     *     * render.finished: (component: Component) => {}
+     *     * render:started (html: string, response: Response, controls: { shouldRender: boolean }) => {}
+     *     * render:finished (component: Component) => {}
      *     * loading.state:started (element: HTMLElement, request: BackendRequest) => {}
      *     * loading.state:finished (element: HTMLElement) => {}
+     *     * model:set (model, value) => {}
      */
     on(hookName: string, callback: (...args: any[]) => void): void {
         this.hooks.register(hookName, callback);
@@ -96,17 +97,7 @@ export default class Component {
         const modelName = normalizeModelName(model);
         this.valueStore.set(modelName, value);
 
-        // if there is a "validatedFields" data, it means this component wants
-        // to track which fields have been / should be validated.
-        // in that case, when the model is updated, mark that it should be validated
-        // TODO: could this be done with a hook?
-        if (this.valueStore.has('validatedFields')) {
-            const validatedFields = [...this.valueStore.get('validatedFields')];
-            if (!validatedFields.includes(modelName)) {
-                validatedFields.push(modelName);
-            }
-            this.valueStore.set('validatedFields', validatedFields);
-        }
+        this.hooks.triggerHook('model:set', model, value);
 
         // the model's data is no longer unsynced
         this.unsyncedInputsTracker.markModelAsSynced(modelName);
@@ -255,7 +246,7 @@ export default class Component {
 
     private processRerender(html: string, response: Response) {
         const controls = { shouldRender: true };
-        this.hooks.triggerHook('render.started', html, response, controls);
+        this.hooks.triggerHook('render:started', html, response, controls);
         // used to notify that the component doesn't live on the page anymore
         if (!controls.shouldRender) {
             return;
@@ -277,6 +268,7 @@ export default class Component {
         // elements to appear different unnecessarily
         this.hooks.triggerHook('loading.state:finished', this.element);
 
+        // TODO: change this to a hook for consistency?
         if (!this.dispatchEvent('live:render', html, true, true)) {
             // preventDefault() was called
             return;
@@ -310,7 +302,7 @@ export default class Component {
             this.valueStore.set(modelName, modifiedModelValues[modelName]);
         });
 
-        this.hooks.triggerHook('render.finished', this);
+        this.hooks.triggerHook('render:finished', this);
     }
 
     private dispatchEvent(name: string, payload: any = null, canBubble = true, cancelable = false) {
