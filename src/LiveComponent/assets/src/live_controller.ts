@@ -4,19 +4,17 @@ import { normalizeModelName } from './string_utils';
 import {
     getModelDirectiveFromElement,
     getElementAsTagText,
-    setValueOnElement,
     getValueFromElement,
     elementBelongsToThisComponent,
 } from './dom_utils';
 import Component, {proxifyComponent} from './Component';
 import Backend from './Backend';
-import {
-    StandardElementDriver,
-} from './Component/ElementDriver';
+import { StandardElementDriver } from './Component/ElementDriver';
 import LoadingPlugin from './Component/plugins/LoadingPlugin';
 import ValidatedFieldsPlugin from './Component/plugins/ValidatedFieldsPlugin';
 import PageUnloadingPlugin from './Component/plugins/PageUnloadingPlugin';
-import PollingPlugin from "./Component/plugins/PollingPlugin";
+import PollingPlugin from './Component/plugins/PollingPlugin';
+import SetValueOntoModelFieldsPlugin from './Component/plugins/SetValueOntoModelFieldsPlugin';
 
 interface UpdateModelOptions {
     dispatch?: boolean;
@@ -89,10 +87,7 @@ export default class extends Controller<HTMLElement> implements LiveController {
         if (this.hasDebounceValue) {
             this.component.defaultDebounce = this.debounceValue;
         }
-        // after we finish rendering, re-set the "value" of model fields
-        this.component.on('render:finished', () => {
-            this.synchronizeValueOfModelFields();
-        });
+
         // TODO: formalize the plugin system
         const loadingHelper = new LoadingPlugin();
         loadingHelper.attachToComponent(this.component);
@@ -106,7 +101,8 @@ export default class extends Controller<HTMLElement> implements LiveController {
         const pollingPlugin = new PollingPlugin();
         pollingPlugin.attachToComponent(this.component);
 
-        this.synchronizeValueOfModelFields();
+        const setValueOntoModelFieldsPlugin = new SetValueOntoModelFieldsPlugin();
+        setValueOntoModelFieldsPlugin.attachToComponent(this.component);
     }
 
     connect() {
@@ -396,52 +392,5 @@ export default class extends Controller<HTMLElement> implements LiveController {
             cancelable,
             detail
         }));
-    }
-
-
-
-    /**
-     * Sets the "value" of all model fields to the component data.
-     *
-     * This is called when the component initializes and after re-render.
-     * Take the following element:
-     *
-     *      <input data-model="firstName">
-     *
-     * This method will set the "value" of that element to the value of
-     * the "firstName" model.
-     */
-    synchronizeValueOfModelFields(): void {
-        this.component.element.querySelectorAll('[data-model]').forEach((element: Element) => {
-            if (!(element instanceof HTMLElement)) {
-                throw new Error('Invalid element using data-model.');
-            }
-
-            if (element instanceof HTMLFormElement) {
-                return;
-            }
-
-            const modelDirective = getModelDirectiveFromElement(element);
-            if (!modelDirective) {
-                return;
-            }
-
-            const modelName = modelDirective.action;
-
-            // skip any elements whose model name is currently in an unsynced state
-            if (this.component.getUnsyncedModels().includes(modelName)) {
-                return;
-            }
-
-            if (this.component.valueStore.has(modelName)) {
-                setValueOnElement(element, this.component.valueStore.get(modelName))
-            }
-
-            // for select elements without a blank value, one might be selected automatically
-            // https://github.com/symfony/ux/issues/469
-            if (element instanceof HTMLSelectElement && !element.multiple) {
-                this.component.valueStore.set(modelName, getValueFromElement(element, this.component.valueStore));
-            }
-        })
     }
 }
