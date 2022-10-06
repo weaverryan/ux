@@ -13,8 +13,8 @@ import Backend from './Backend';
 import {
     StandardElementDriver,
 } from './Component/ElementDriver';
-import LoadingHelper from './LoadingHelper';
-import ValidatedFieldsPlugin from "./Component/plugins/ValidatedFieldsPlugin";
+import LoadingPlugin from './Component/plugins/LoadingPlugin';
+import ValidatedFieldsPlugin from './Component/plugins/ValidatedFieldsPlugin';
 
 interface UpdateModelOptions {
     dispatch?: boolean;
@@ -103,7 +103,7 @@ export default class extends Controller<HTMLElement> implements LiveController {
                 controls.shouldRender = false;
             }
         });
-        const loadingHelper = new LoadingHelper();
+        const loadingHelper = new LoadingPlugin();
         loadingHelper.attachToComponent(this.component);
 
         const validatedFieldsPlugin = new ValidatedFieldsPlugin();
