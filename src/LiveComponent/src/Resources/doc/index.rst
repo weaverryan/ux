@@ -384,31 +384,61 @@ live property on your component to the value ``edit``. The
 ``data-action="live#update"`` is Stimulus code that triggers
 the update.
 
-Updating a Field via Custom JavaScript
---------------------------------------
+Working with the Component in JavaScript
+----------------------------------------
 
-Sometimes you might want to change the value of a field via your own
-custom JavaScript. Suppose you have the following field inside your component:
+Want to change the value of a model or even trigger an action from your
+own custom JavaScript? No problem, thanks to a JavaScript ``Component``
+object, which is attached to each root component element.
 
-.. code-block:: twig
+For example, to write your custom JavaScript, you create a Stimulus
+controller and put it around (or attached to) your root component element:
 
-    <input
-        id="favorite-food"
-        data-model="favoriteFood"
-    >
+.. code-block:: javascript
 
-To set the value of this field via custom JavaScript (e.g. a Stimulus controller),
+    // assets/controllers/some-custom-controller.js
+    // ...
+
+    export default class extends Controller {
+        connect() {
+            // when the live component inside of this controller is initialized,
+            // this method will be called and you can access the Component object
+            this.element.addEventListener('live:connect', (event) => {
+                this.component = event.detail.component;
+            });
+        }
+
+        // some Stimulus action triggered, for example, on user click
+        toggleMode() {
+            // e.g. set some live property called "mode" on your component
+            this.component.set('mode', 'editing');
+            // you can also say
+            this.component.mode = 'editing';
+
+            // or call an action
+            this.action('save', { arg1: 'value1' });
+            // you can also say:
+            this.save({ arg1: 'value1'});
+        }
+    }
+
+You can also access the ``Component`` object via a special property
+on the root component element:
+
+.. code-block:: javascript
+
+    const component = document.getElementById('id-on-your-element').__component;
+    component.mode = 'editing';
+
+Finally, you can also set the value of a model field directly. However,
 be sure to *also* trigger a ``change`` event so that live components is notified
 of the change:
 
 .. code-block:: javascript
 
-    const input = document.getElementById('favorite-food');
+    const rootElement = document.getElementById('favorite-food');
     input.value = 'sushi';
 
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-
-    // if you have data-model="on(change)|favoriteFood", use the "change" event
     element.dispatchEvent(new Event('change', { bubbles: true }));
 
 Loading States
