@@ -202,20 +202,22 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
     {
         if (!$request->attributes->has('_live_request_data')) {
             if ($request->query->has('data')) {
-                return [
+                $liveRequestData = [
                     'data' => json_decode($request->query->get('data'), true, 512, \JSON_THROW_ON_ERROR),
                     'args' => [],
                     'actions' => [],
                 ];
+            } else {
+                $requestData = $request->toArray();
+
+                $liveRequestData = [
+                    'data' => $requestData['data'] ?? [],
+                    'args' => $requestData['args'] ?? [],
+                    'actions' => $requestData['actions'] ?? [],
+                ];
             }
 
-            $requestData = $request->toArray();
-
-            $request->attributes->set('_live_request_data', [
-                'data' => $requestData['data'] ?? [],
-                'args' => $requestData['args'] ?? [],
-                'actions' => $requestData['actions'] ?? [],
-            ]);
+            $request->attributes->set('_live_request_data', $liveRequestData);
         }
 
         return $request->attributes->get('_live_request_data');
