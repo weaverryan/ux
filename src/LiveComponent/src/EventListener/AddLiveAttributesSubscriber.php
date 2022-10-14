@@ -19,6 +19,7 @@ use Symfony\Contracts\Service\ServiceSubscriberInterface;
 use Symfony\UX\LiveComponent\DehydratedComponent;
 use Symfony\UX\LiveComponent\LiveComponentHydrator;
 use Symfony\UX\LiveComponent\Twig\DeterministicTwigIdCalculator;
+use Symfony\UX\LiveComponent\Util\FingerprintCalculator;
 use Symfony\UX\TwigComponent\ComponentAttributes;
 use Symfony\UX\TwigComponent\ComponentMetadata;
 use Symfony\UX\TwigComponent\ComponentStack;
@@ -82,6 +83,7 @@ final class AddLiveAttributesSubscriber implements EventSubscriberInterface, Ser
             Environment::class,
             ComponentStack::class,
             DeterministicTwigIdCalculator::class,
+            FingerprintCalculator::class,
             '?'.CsrfTokenManagerInterface::class,
         ];
     }
@@ -111,8 +113,18 @@ final class AddLiveAttributesSubscriber implements EventSubscriberInterface, Ser
             $id = $this->container->get(DeterministicTwigIdCalculator::class)->calculateDeterministicId();
 
             $attributes['data-live-id'] = $id;
+            $attributes['data-live-value-fingerprint'] = $this->calculateFingerprint($mounted);
         }
 
         return new ComponentAttributes($attributes);
+    }
+
+    private function calculateFingerprint(MountedComponent $mounted): string
+    {
+        if (null === $mounted->getInputProps()) {
+            throw new \LogicException('Child component is missing its input props.');
+        }
+
+        return $this->container->get(FingerprintCalculator::class)->calculateFingerprint($mounted->getInputProps());
     }
 }
