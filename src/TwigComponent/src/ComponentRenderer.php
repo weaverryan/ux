@@ -14,7 +14,7 @@ namespace Symfony\UX\TwigComponent;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\UX\TwigComponent\Attribute\ExposeInTemplate;
-use Symfony\UX\TwigComponent\EventListener\PreRenderEvent;
+use Symfony\UX\TwigComponent\Event\PreRenderEvent;
 use Twig\Environment;
 use Twig\Extension\EscaperExtension;
 

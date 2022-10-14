@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2.5
+
+-   The `PreRenderEvent` namespace was changed from `Symfony\UX\TwigComponent\EventListener`
+    to `Symfony\UX\TwigComponent\Event`.
+
 ## 2.2
 
 -   Allow to pass stringable object as non mapped component attribute.
