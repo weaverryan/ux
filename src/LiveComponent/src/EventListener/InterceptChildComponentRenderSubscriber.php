@@ -45,11 +45,12 @@ class InterceptChildComponentRenderSubscriber implements EventSubscriberInterfac
 
     public function preComponentCreated(PreCreateForRenderEvent $event): void
     {
-        if (!$this->componentStack->hasParentComponent()) {
+        // if there is already a component, that's a parent. Else, this is not a child.
+        if (!$this->componentStack->getCurrentComponent()) {
             return;
         }
 
-        $parentComponent = $this->componentStack->getParentComponent();
+        $parentComponent = $this->componentStack->getCurrentComponent();
         if (!$parentComponent->hasExtraMetadata(self::CHILDREN_FINGERPRINTS_METADATA_KEY)) {
             return;
         }

@@ -43,7 +43,7 @@ final class PreCreateForRenderEvent extends Event
 
     public function setRenderedString(string $renderedString): void
     {
-        $this->setRenderedString($renderedString);
+        $this->renderedString = $renderedString;
 
         $this->stopPropagation();
     }
