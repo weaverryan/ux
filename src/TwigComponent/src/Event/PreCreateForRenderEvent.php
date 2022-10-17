@@ -27,8 +27,7 @@ final class PreCreateForRenderEvent extends Event
     public function __construct(
         private string $name,
         private array $props = []
-    )
-    {
+    ) {
     }
 
     public function getName(): string

@@ -12,11 +12,9 @@
 namespace Symfony\UX\LiveComponent\Tests\Functional\EventListener;
 
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\UX\LiveComponent\Tests\Fixtures\Component\TodoListComponent;
-use Symfony\UX\LiveComponent\Tests\Fixtures\Entity\Entity1;
+use Symfony\Component\BrowserKit\AbstractBrowser;
 use Symfony\UX\LiveComponent\Tests\LiveComponentTestHelper;
 use Zenstruck\Browser\Test\HasBrowser;
-use function Zenstruck\Foundry\create;
 
 final class InterceptChildComponentRenderSubscriberTest extends KernelTestCase
 {
@@ -26,7 +24,7 @@ final class InterceptChildComponentRenderSubscriberTest extends KernelTestCase
     // The actual ids and fingerprints that will happen inside todo_list.html.twig
     // if you pass in 3 "items" with data that matches what's used by default
     // in buildUrlForTodoListComponent
-    private static $actualTodoItemFingerprints = [
+    private static array $actualTodoItemFingerprints = [
         'live-3649730296-0' => 'LwqODySoRx3q+v64EzalGouzpSHWKIm0jENTUGtQloE=',
         'live-3649730296-1' => 'gn9PcPUqL0tkeLSw0ZuhOj96dwIpiBmJPoO5NPync2o=',
         'live-3649730296-2' => 'ndV00y/qOSH11bjOKGDJVRsxANtbudYB6K8D46viUI8=',
@@ -54,8 +52,37 @@ final class InterceptChildComponentRenderSubscriberTest extends KernelTestCase
             ->assertElementCount('ul li', 0)
             // because we actually slip in a div element
             ->assertElementCount('ul div', 3)
-            ->assertNotContains('todo item: milk')
-            ->assertNotContains('todo item: cheese')
+            ->assertNotContains('todo item')
+        ;
+    }
+
+    public function testItRendersNewPropWhenFingerprintDoesNotMatch(): void
+    {
+        $fingerprints = self::$actualTodoItemFingerprints;
+        $fingerprints['live-3649730296-1'] = 'wrong fingerprint';
+
+        $this->browser()
+            ->visit($this->buildUrlForTodoListComponent($fingerprints))
+            ->assertSuccessful()
+            ->assertHtml()
+            // no lis (because we render a div always)
+            ->assertElementCount('ul li', 0)
+            ->assertElementCount('ul div', 3)
+            ->assertNotContains('todo item')
+            ->use(function (AbstractBrowser $browser) {
+                $content = $browser->getResponse()->getContent();
+
+                // 1st and 3rd render empty
+                // fingerprint changed in 2nd, so it renders new fingerprint + props
+                $this->assertStringContainsString(<<<EOF
+<ul>
+            <div data-live-id="live-3649730296-0"></div>
+            <div data-live-id="live-3649730296-1" data-live-fingerprint-value="gn9PcPUqL0tkeLSw0ZuhOj96dwIpiBmJPoO5NPync2o&#x3D;" data-live-props-value="&#x7B;&quot;_checksum&quot;&#x3A;&quot;YrPg4mHsB82fR&#x5C;&#x2F;VmTL3gJIX32kS8HvWy&#x5C;&#x2F;9uKSs&#x5C;&#x2F;aPfk&#x3D;&quot;&#x7D;"></div>
+            <div data-live-id="live-3649730296-2"></div>
+        </ul>
+EOF,
+                    $content);
+            })
         ;
     }
 
@@ -81,8 +108,4 @@ final class InterceptChildComponentRenderSubscriberTest extends KernelTestCase
 
         return '/_components/todo_list?'.http_build_query($queryData);
     }
-
-    // render empty element on matching fingerprint
-    // render new props, fingerprint on non-matching fingerprint
-    // loop with matching/not-matching does not cause issues
 }
