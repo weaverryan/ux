@@ -50,7 +50,7 @@ final class ResetDeterministicIdSubscriber implements EventSubscriberInterface
 
     public function onPostRender(): void
     {
-        if ($this->componentStack->getCurrentComponent()) {
+        if (!$this->componentStack->getCurrentComponent()) {
             $this->idCalculator->reset();
         }
     }
