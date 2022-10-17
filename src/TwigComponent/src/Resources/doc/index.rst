@@ -642,7 +642,7 @@ Subscribing to the ``PreRenderEvent`` gives the ability to modify
 the twig template and twig variables before components are rendered::
 
     use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-    use Symfony\UX\TwigComponent\EventListener\PreRenderEvent;
+    use Symfony\UX\TwigComponent\Event\PreRenderEvent;
 
     class HookIntoTwigPreRenderSubscriber implements EventSubscriberInterface
     {
@@ -666,6 +666,29 @@ the twig template and twig variables before components are rendered::
             return [PreRenderEvent::class => 'onPreRender'];
         }
     }
+
+PostRenderEvent
+---------------
+
+.. versionadded:: 2.5
+
+    The ``PostRenderEvent`` was added in TwigComponents 2.5.
+
+The ``PostRenderEvent`` is called after a component has finished
+rendering and contains the ``MountedComponent`` that was just
+rendered.
+
+PreCreateForRenderEvent
+-----------------------
+
+.. versionadded:: 2.5
+
+    The ``PreCreateForRenderEvent`` was added in TwigComponents 2.5.
+
+Subscribing to the ``PreCreateForRenderEvent`` gives the ability to be
+notified before a component object is created or hydrated, at the
+very start of the rendering process. You have access to the component
+name, input props and can interrupt the process by setting HTML.
 
 Nested Components
 -----------------

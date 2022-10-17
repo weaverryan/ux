@@ -14,7 +14,9 @@ namespace Symfony\UX\TwigComponent;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\UX\TwigComponent\Attribute\ExposeInTemplate;
-use Symfony\UX\TwigComponent\EventListener\PreRenderEvent;
+use Symfony\UX\TwigComponent\Event\PostRenderEvent;
+use Symfony\UX\TwigComponent\Event\PreCreateForRenderEvent;
+use Symfony\UX\TwigComponent\Event\PreRenderEvent;
 use Twig\Environment;
 use Twig\Extension\EscaperExtension;
 
@@ -40,6 +42,14 @@ final class ComponentRenderer
 
     public function createAndRender(string $name, array $props = []): string
     {
+        $event = new PreCreateForRenderEvent($name, $props);
+        $this->dispatcher->dispatch($event);
+
+        // allow the process to be short-circuited
+        if (null !== $rendered = $event->getRenderedString()) {
+            return $rendered;
+        }
+
         return $this->render($this->factory->create($name, $props));
     }
 
@@ -53,6 +63,9 @@ final class ComponentRenderer
             return $this->twig->render($event->getTemplate(), $event->getVariables());
         } finally {
             $this->componentStack->pop();
+
+            $event = new PostRenderEvent($mounted);
+            $this->dispatcher->dispatch($event);
         }
     }
 
