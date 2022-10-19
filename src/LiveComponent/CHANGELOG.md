@@ -28,7 +28,7 @@
 
 -   [BEHAVIOR CHANGE] The way that child components re-render when a parent re-renders
     has changed, but shouldn't be drastically different. Child components will now
-    avoid re-rendering if no "input" to the component changed *and* will maintain
+    avoid re-rendering if no "input" to the component changed _and_ will maintain
     any writable `LiveProp` values after the re-render. Also, the re-render happens
     in a separate Ajax call after the parent has finished re-rendering.
 
