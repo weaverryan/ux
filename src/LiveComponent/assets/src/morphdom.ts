@@ -55,7 +55,9 @@ export function executeMorphdom(
                 if (childComponentMap.has(fromEl)) {
                     const childComponent = childComponentMap.get(fromEl) as Component;
 
-                    return childComponent.updateFromNewElement(toEl);
+                    childComponent.updateFromNewElementFromParentRender(toEl);
+
+                    return false;
                 }
 
                 // if this field's value has been modified since this HTML was

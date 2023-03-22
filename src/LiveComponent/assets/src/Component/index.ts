@@ -228,13 +228,13 @@ export default class Component {
      *
      * @param toEl
      */
-    updateFromNewElement(toEl: HTMLElement): boolean {
+    updateFromNewElementFromParentRender(toEl: HTMLElement): void {
         const props = this.elementDriver.getComponentProps(toEl);
 
         // if no props are on the element, use the existing element completely
         // this means the parent is signaling that the child does not need to be re-rendered
         if (props === null) {
-            return false;
+            return;
         }
 
         // push props directly down onto the value store
@@ -249,7 +249,7 @@ export default class Component {
             this.render();
         }
 
-        return false;
+        return;
     }
 
     /**
