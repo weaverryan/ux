@@ -2004,12 +2004,14 @@ There are three ways to emit an event:
 
 2. From your PHP component::
 
+    use Symfony\UX\LiveComponent\LiveResponder;
+
     #[LiveAction]
-    public function saveProduct()
+    public function saveProduct(LiveResponder $responder)
     {
         // ...
 
-        return new LiveEvent('productAdded');
+        $responder->emit('productAdded');
     }
 
 3. :ref:`From JavaScript <working-in-javascript>`, using your component:
@@ -2044,11 +2046,11 @@ Passing Data to Listeners
 You can also pass extra (scalar) data to the listeners::
 
     #[LiveAction]
-    public function saveProduct(LiveEmitterInterface $emitter)
+    public function saveProduct(LiveResponder $responder)
     {
         // ...
 
-        $emitter->emit('productAdded');
+        $responder->emit('productAdded');
     }
 
 In your listeners, you can access this by adding a matching argument
@@ -2061,8 +2063,8 @@ name with `#[LiveArg]` in front::
         $this->lastProduct = $data['product'];
     }
 
-And because event listeners are also actions, you can also type-hint an argument
-with an entity name::
+And because event listeners are also actions, you can type-hint an argument
+with an entity name, just like you would in a controller::
 
     #[LiveListener('productAdded')]
     public function incrementProductCount(#[LiveArg] Product $product)
@@ -2081,18 +2083,18 @@ Emitting only to Parent Components
 ...................................
 
 If you want to emit an event to only the parent components, use the
-``parent`` modifier:
+``emitUp()`` method:
 
 .. code-block:: twig
 
     <button
-        data-action="live#emit"
-        data-event="parent|productAdded"
+        data-action="live#emitUp"
+        data-event="productAdded"
     >
 
 Or, in PHP::
 
-    return new LiveEvent('productAdded', target: LiveEvent::TARGET_PARENT);
+    $responder->emitUp('productAdded');
 
 Emitting only to Components with a Specific Name
 .................................................
@@ -2109,23 +2111,23 @@ use the ``name()`` modifier:
 
 Or, in PHP::
 
-    return new LiveEvent('productAdded', targetComponent: 'product_list');
+    $responder->emit('productAdded', name: 'product_list');
 
 Emitting only to Yourself
 .........................
 
-To emit an event to only yourself, use the ``self`` modifier:
+To emit an event to only yourself, use the ``emitSelf()`` method:
 
 .. code-block:: twig
 
     <button
-        data-action="live#emit"
-        data-event="self|productAdded"
+        data-action="live#emitSelf"
+        data-event="productAdded"
     >
 
 Or, in PHP::
 
-    return new LiveEvent('productAdded', target: LiveEvent::TARGET_SELF);
+    $responder->emitSelf('productAdded');
 
 Nested Components
 -----------------
