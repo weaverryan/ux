@@ -165,7 +165,6 @@ final class LiveComponentExtension extends Extension implements PrependExtension
                 new Reference('ux.live_component.metadata_factory'),
                 new Reference('ux.live_component.component_hydrator'),
                 new Reference('ux.live_component.attribute_helper_factory'),
-                new Reference('ux.twig_component.component_stack'),
                 new Reference('ux.live_component.deterministic_id_calculator'),
                 new Reference('ux.live_component.fingerprint_calculator'),
                 new Reference('router'),
