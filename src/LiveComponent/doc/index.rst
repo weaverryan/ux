@@ -1982,6 +1982,151 @@ You can also trigger a specific "action" instead of a normal re-render:
         #}
     >
 
+Communication Between Components: Emitting Events
+-------------------------------------------------
+
+Events allow you to communicate between any two components that live
+on your page.
+
+Emitting an Event
+~~~~~~~~~~~~~~~~~
+
+There are three ways to emit an event:
+
+1. From Twig:
+
+.. code-block:: twig
+
+    <button
+        data-action="live#emit"
+        data-event="productAdded"
+    >
+
+2. From your PHP component::
+
+    #[LiveAction]
+    public function saveProduct()
+    {
+        // ...
+
+        return new LiveEvent('productAdded');
+    }
+
+3. :ref:`From JavaScript <working-in-javascript>`, using your component:
+
+.. code-block:: javascript
+
+    this.component.emit('productAdded');
+
+Listen to Events
+~~~~~~~~~~~~~~~~
+
+To listen to an event, add a method with a `#[LiveListener]` above it::
+
+    #[LiveProp]
+    public int $productCount = 0;
+
+    #[LiveListener('productAdded')]
+    public function incrementProductCount()
+    {
+        $this->productCount++;
+    }
+
+Thanks to this, when any other component emits the ``productAdded`` event, an Ajax
+call will be made to call this method and re-render the component.
+
+Behind the scenes, event listeners are also `LiveActions <actions>`, so you can
+autowire any services you need.
+
+Passing Data to Listeners
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can also pass extra (scalar) data to the listeners::
+
+    #[LiveAction]
+    public function saveProduct(LiveEmitterInterface $emitter)
+    {
+        // ...
+
+        $emitter->emit('productAdded');
+    }
+
+In your listeners, you can access this by adding a matching argument
+name with `#[LiveArg]` in front::
+
+    #[LiveListener('productAdded')]
+    public function incrementProductCount(#[LiveArg] int $product)
+    {
+        $this->productCount++;
+        $this->lastProduct = $data['product'];
+    }
+
+And because event listeners are also actions, you can also type-hint an argument
+with an entity name::
+
+    #[LiveListener('productAdded')]
+    public function incrementProductCount(#[LiveArg] Product $product)
+    {
+        $this->productCount++;
+        $this->lastProduct = $product;
+    }
+
+Scoping Events
+~~~~~~~~~~~~~~
+
+By default, when an event is emitted, it is sent to *all* components that are
+currently on the page. You can scope these in various ways:
+
+Emitting only to Parent Components
+...................................
+
+If you want to emit an event to only the parent components, use the
+``parent`` modifier:
+
+.. code-block:: twig
+
+    <button
+        data-action="live#emit"
+        data-event="parent|productAdded"
+    >
+
+Or, in PHP::
+
+    return new LiveEvent('productAdded', target: LiveEvent::TARGET_PARENT);
+
+Emitting only to Components with a Specific Name
+.................................................
+
+If you want to emit an event to only components with a specific name,
+use the ``name()`` modifier:
+
+.. code-block:: twig
+
+    <button
+        data-action="live#emit"
+        data-event="name(product_list)|productAdded"
+    >
+
+Or, in PHP::
+
+    return new LiveEvent('productAdded', targetComponent: 'product_list');
+
+Emitting only to Yourself
+.........................
+
+To emit an event to only yourself, use the ``self`` modifier:
+
+.. code-block:: twig
+
+    <button
+        data-action="live#emit"
+        data-event="self|productAdded"
+    >
+
+Or, in PHP::
+
+    return new LiveEvent('productAdded', target: LiveEvent::TARGET_SELF);
+
 Nested Components
 -----------------
 
