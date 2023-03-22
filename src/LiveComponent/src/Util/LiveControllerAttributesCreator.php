@@ -49,24 +49,24 @@ class LiveControllerAttributesCreator
     public function attributesForRendering(MountedComponent $mounted, ComponentMetadata $metadata, bool $isChildComponent, string $deterministicId = null): LiveAttributesCollection
     {
         $attributesCollection = $this->attributeHelper->create();
-        $attributesCollection->addLiveController();
+        $attributesCollection->setLiveController();
 
         $url = $this->urlGenerator->generate($metadata->get('route'), ['_live_component' => $mounted->getName()]);
-        $attributesCollection->addLiveUrl($url);
+        $attributesCollection->setLiveUrl($url);
 
         $mountedAttributes = $mounted->getAttributes();
 
         if ($isChildComponent) {
             if (!isset($mountedAttributes->all()['data-live-id'])) {
                 $id = $deterministicId ?: $this->idCalculator->calculateDeterministicId();
-                $attributesCollection->addLiveId($id);
+                $attributesCollection->setLiveId($id);
                 // we need to add this to the mounted attributes so that it is
                 // will be included in the "attributes" part of the props data.
                 $mountedAttributes = $mountedAttributes->defaults(['data-live-id' => $id]);
             }
 
             $fingerprint = $this->fingerprintCalculator->calculateFingerprint($mounted->getInputProps());
-            $attributesCollection->addFingerprint($fingerprint);
+            $attributesCollection->setFingerprint($fingerprint);
         }
 
         $dehydratedProps = $this->dehydrateComponent(
@@ -74,10 +74,10 @@ class LiveControllerAttributesCreator
             $mounted->getComponent(),
             $mountedAttributes
         );
-        $attributesCollection->addProps($dehydratedProps->getProps());
+        $attributesCollection->setProps($dehydratedProps->getProps());
 
         if ($this->csrfTokenManager && $metadata->get('csrf')) {
-            $attributesCollection->addLiveCsrf(
+            $attributesCollection->setLiveCsrf(
                 $this->csrfTokenManager->getToken(self::getCsrfTokeName($mounted->getName()))->getValue(),
             );
         }

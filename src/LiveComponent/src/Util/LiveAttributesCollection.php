@@ -42,29 +42,34 @@ final class LiveAttributesCollection
         return $escaped;
     }
 
-    public function addLiveController(): void
+    public function setLiveController(): void
     {
         $this->attributes['data-controller'] = 'live';
     }
 
-    public function addLiveId(string $id): void
+    public function setLiveId(string $id): void
     {
         $this->attributes['data-live-id'] = $id;
     }
 
-    public function addFingerprint(string $fingerprint): void
+    public function setFingerprint(string $fingerprint): void
     {
         $this->attributes['data-live-fingerprint-value'] = $fingerprint;
     }
 
-    public function addProps(array $dehydratedProps): void
+    public function setProps(array $dehydratedProps): void
     {
         $this->attributes['data-live-props-value'] = $dehydratedProps;
     }
 
-    public function addNestedProps(array $nestedProps): void
+    public function setLiveUrl(string $url): void
     {
-        $this->attributes['data-live-nested-props-value'] = $nestedProps;
+        $this->attributes['data-live-url-value'] = $url;
+    }
+
+    public function setLiveCsrf(string $csrf): void
+    {
+        $this->attributes['data-live-csrf-value'] = $csrf;
     }
 
     public function getProps(): array
@@ -74,16 +79,6 @@ final class LiveAttributesCollection
         }
 
         return $this->attributes['data-live-props-value'];
-    }
-
-    public function addLiveUrl(string $url): void
-    {
-        $this->attributes['data-live-url-value'] = $url;
-    }
-
-    public function addLiveCsrf(string $csrf): void
-    {
-        $this->attributes['data-live-csrf-value'] = $csrf;
     }
 
     private function escapeAttribute(string $value): string
