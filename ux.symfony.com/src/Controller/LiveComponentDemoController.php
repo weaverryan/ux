@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Invoice;
 use App\Entity\TodoItem;
 use App\Entity\TodoList;
 use App\Form\TodoListForm;
@@ -81,6 +82,17 @@ class LiveComponentDemoController extends AbstractController
     {
         return $this->render('live_component_demo/chartjs.html.twig', parameters: [
             'demo' => $liveDemoRepository->find('chartjs_updating'),
+        ]);
+    }
+
+    #[Route('/invoice/{id}', name: 'app_live_components_invoice', defaults: ['id' => null])]
+    public function invoice(LiveDemoRepository $liveDemoRepository, Invoice $invoice = null): Response
+    {
+        $invoice = $invoice ?? new Invoice();
+
+        return $this->render('live_component_demo/invoice.html.twig', parameters: [
+            'demo' => $liveDemoRepository->find('invoice'),
+            'invoice' => $invoice,
         ]);
     }
 }

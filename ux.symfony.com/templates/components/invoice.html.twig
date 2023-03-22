@@ -1,0 +1,31 @@
+<div {{ attributes }}>
+    <label>
+        Customer name:
+        <input type="text" data-model="invoice.customerName" value="{{ this.invoice.customerName }}">
+    </label>
+
+    <label>
+        Customer email:
+        <input type="email" data-model="invoice.customerEmail" value="{{ this.invoice.customerEmail }}">
+    </label>
+
+    <button
+        data-action="live#action"
+        data-action-name="addProduct"
+    >Add product</button>
+
+    {% for key, item in this.invoice.invoiceItems %}
+        {{ component('invoice_item', {
+            dataModel: 'item:invoiceItem.'~key,
+        }) }}
+    {% endfor %}
+
+    <div>
+        <label>
+            Tax percentage:
+            <input type="number" data-model="invoice.taxRate" value="{{ this.invoice.taxRate }}">
+        </label>
+        <p>Subtotal: {{ this.invoice.getSubtotal() }}</p>
+        <p>Total: {{ this.getTotal() }}</p>
+    </div>
+</div>

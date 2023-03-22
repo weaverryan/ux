@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Entity\Chat;
 use App\Entity\Food;
+use App\Entity\Product;
 use App\Entity\TodoItem;
 use App\Entity\TodoList;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +30,7 @@ class LoadDataCommand extends Command
         $this->clearEntity(TodoItem::class, $io);
         $this->clearEntity(TodoList::class, $io);
         $this->growFood($io);
+        $this->manufactureProducts($io);
 
         return Command::SUCCESS;
     }
@@ -59,6 +61,39 @@ class LoadDataCommand extends Command
             $entity->setName($food);
             $entity->setVotes(rand(0, 100));
             $io->write([$food, ' ']);
+
+            $this->entityManager->persist($entity);
+        }
+        $io->writeln('');
+
+        $this->entityManager->flush();
+    }
+
+    private function manufactureProducts(SymfonyStyle $io): void
+    {
+        // an array of funny products that aliens might use
+        $products = [
+            'Spare tire for the flying saucer',
+            'Glorp-o-Matic 3000',
+            'Giant laser',
+            'Space helmet',
+            'Space boots',
+            'Interstellar Snack Pack',
+            'UFO Parking Permit',
+            'Anti-Gravity Propulsion System',
+            'Tractor Beam Emitter',
+            'Temporal Flux Regulator',
+            'Space Heater',
+            'Faster-Than-Light Communicator',
+        ];
+
+        $this->clearEntity(Product::class, $io);
+        $io->info('Manufacturing space products...');
+        foreach ($products as $product) {
+            $entity = new Product();
+            $entity->setName($product);
+            $entity->setPrice(rand(10, 200) * 100);
+            $io->write([$product, ' ']);
 
             $this->entityManager->persist($entity);
         }

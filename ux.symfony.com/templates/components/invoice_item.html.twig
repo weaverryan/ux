@@ -1,0 +1,23 @@
+<div {{ attributes }}>
+    <label>
+        Product:
+        <select data-model="product">
+            {# Assuming you have a 'products' variable containing all available products #}
+            {% for product in products %}
+                <option value="{{ product.id }}" {% if this.product.id == product.id %}selected{% endif %}>
+                    {{ product.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <label>
+        Quantity:
+        <input type="number" data-model="quantity" value="{{ this.quantity }}">
+    </label>
+
+    <button
+        data-action="live#action"
+        data-action-name="removeProduct"
+    >Remove product</button>
+</div>

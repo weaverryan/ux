@@ -1,0 +1,7 @@
+{% extends 'liveDemoBase.html.twig' %}
+
+{% block demo_content %}
+    {{ component('invoice', {
+        invoice: invoice
+    }) }}
+{% endblock %}
