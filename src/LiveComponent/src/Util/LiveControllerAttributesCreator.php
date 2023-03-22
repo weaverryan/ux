@@ -13,7 +13,9 @@ namespace Symfony\UX\LiveComponent\Util;
 
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\LiveComponentHydrator;
+use Symfony\UX\LiveComponent\LiveResponder;
 use Symfony\UX\LiveComponent\Metadata\LiveComponentMetadataFactory;
 use Symfony\UX\LiveComponent\Twig\DeterministicTwigIdCalculator;
 use Symfony\UX\TwigComponent\ComponentAttributes;
@@ -36,6 +38,7 @@ class LiveControllerAttributesCreator
         private DeterministicTwigIdCalculator $idCalculator,
         private FingerprintCalculator $fingerprintCalculator,
         private UrlGeneratorInterface $urlGenerator,
+        private LiveResponder $liveResponder,
         private ?CsrfTokenManagerInterface $csrfTokenManager,
     ) {
     }
@@ -47,10 +50,21 @@ class LiveControllerAttributesCreator
     public function attributesForRendering(MountedComponent $mounted, ComponentMetadata $metadata, bool $isChildComponent, string $deterministicId = null): LiveAttributesCollection
     {
         $attributesCollection = $this->attributeHelper->create();
-        $attributesCollection->setLiveController();
+        $attributesCollection->setLiveController($mounted->getName());
 
         $url = $this->urlGenerator->generate($metadata->get('route'), ['_live_component' => $mounted->getName()]);
-        $attributesCollection->setLiveUrl($url);
+        $attributesCollection->setUrl($url);
+
+        $liveListeners = AsLiveComponent::liveListeners($mounted->getComponent());
+        if ($liveListeners) {
+            $attributesCollection->setListeners($liveListeners);
+        }
+
+        $eventsToEmit = $this->liveResponder->getEventsToEmit();
+        $this->liveResponder->reset();
+        if ($eventsToEmit) {
+            $attributesCollection->setEventsToEmit($eventsToEmit);
+        }
 
         $mountedAttributes = $mounted->getAttributes();
 
@@ -75,7 +89,7 @@ class LiveControllerAttributesCreator
         $attributesCollection->setProps($dehydratedProps->getProps());
 
         if ($this->csrfTokenManager && $metadata->get('csrf')) {
-            $attributesCollection->setLiveCsrf(
+            $attributesCollection->setCsrf(
                 $this->csrfTokenManager->getToken(self::getCsrfTokeName($mounted->getName()))->getValue(),
             );
         }

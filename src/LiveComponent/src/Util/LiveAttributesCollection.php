@@ -42,9 +42,10 @@ final class LiveAttributesCollection
         return $escaped;
     }
 
-    public function setLiveController(): void
+    public function setLiveController(string $componentName): void
     {
         $this->attributes['data-controller'] = 'live';
+        $this->attributes['data-live-name-value'] = $componentName;
     }
 
     public function setLiveId(string $id): void
@@ -62,14 +63,24 @@ final class LiveAttributesCollection
         $this->attributes['data-live-props-value'] = $dehydratedProps;
     }
 
-    public function setLiveUrl(string $url): void
+    public function setUrl(string $url): void
     {
         $this->attributes['data-live-url-value'] = $url;
     }
 
-    public function setLiveCsrf(string $csrf): void
+    public function setCsrf(string $csrf): void
     {
         $this->attributes['data-live-csrf-value'] = $csrf;
+    }
+
+    public function setListeners(array $listeners): void
+    {
+        $this->attributes['data-live-listeners-value'] = $listeners;
+    }
+
+    public function setEventsToEmit(array $events): void
+    {
+        $this->attributes['data-live-emit'] = $events;
     }
 
     public function getProps(): array

@@ -35,17 +35,21 @@ export interface LiveController {
 }
 export default class LiveControllerDefault extends Controller<HTMLElement> implements LiveController {
     static values = {
+        name: String,
         url: String,
         props: Object,
         csrf: String,
+        listeners: { type: Array, default: {} },
         debounce: { type: Number, default: 150 },
         id: String,
         fingerprint: String,
     };
 
+    declare readonly nameValue: string;
     declare readonly urlValue: string;
     declare readonly propsValue: any;
     declare readonly csrfValue: string;
+    declare readonly listenersValue: Array<{ event: string; action: string }>;
     declare readonly hasDebounceValue: boolean;
     declare readonly debounceValue: number;
     declare readonly fingerprintValue: string;
@@ -62,6 +66,13 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         { event: 'live:connect', callback: (event) => this.handleConnectedControllerEvent(event) },
     ];
 
+    /**
+     * A map of all the components that have been created.
+     *
+     * The value is the component's name.
+     */
+    private static componentMap: Map<Component, string> = new Map();
+
     initialize() {
         this.handleDisconnectedChildControllerEvent = this.handleDisconnectedChildControllerEvent.bind(this);
 
@@ -70,6 +81,8 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         this.component = new Component(
             this.element,
             this.propsValue,
+            this.listenersValue,
+            LiveControllerDefault.findComponents,
             this.fingerprintValue,
             id,
             new Backend(this.urlValue, this.csrfValue),
@@ -97,6 +110,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     }
 
     connect() {
+        LiveControllerDefault.componentMap.set(this.component, this.nameValue);
         this.component.connect();
 
         this.elementEventListeners.forEach(({ event, callback }) => {
@@ -108,6 +122,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     }
 
     disconnect() {
+        LiveControllerDefault.componentMap.delete(this.component);
         this.component.disconnect();
 
         this.elementEventListeners.forEach(({ event, callback }) => {
@@ -350,5 +365,28 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         detail.component = this.proxiedComponent;
 
         this.dispatch(name, { detail, prefix: 'live', cancelable, bubbles: canBubble });
+    }
+
+
+    /**
+     * Returns a filtered list of all the currently-registered components
+     */
+    static findComponents(currentComponent: Component, onlyParents: boolean, onlyMatchName: string|null): Component[] {
+        const components: Component[] = [];
+        LiveControllerDefault.componentMap.forEach((componentName: string, component: Component) => {
+            if (onlyParents &&
+                (currentComponent === component || !currentComponent.element.contains(component.element))
+            ) {
+                return;
+            }
+
+            if (onlyMatchName && componentName !== onlyMatchName) {
+                return;
+            }
+
+            components.push(component);
+        });
+
+        return components;
     }
 }
