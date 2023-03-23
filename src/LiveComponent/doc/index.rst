@@ -1892,27 +1892,26 @@ action::
     }
 
 If validation fails, an exception is thrown, but the component will be
-re-rendered. In your template, render errors using the ``getError()``
-method:
+re-rendered. In your template, render errors using an ``_errors`` variable:
 
 .. code-block:: twig
 
-    {% if this.getError('post.content') %}
+    {% if _errors.has('post.content') %}
         <div class="error">
-            {{ this.getError('post.content').message }}
+            {{ _errors.get('post.content') }}
         </div>
     {% endif %}
     <textarea
         data-model="post.content"
-        class="{{ this.getError('post.content') ? 'has-error' : '' }}"
+        class="{{ _errors.has('post.content') ? 'is-invalid' : '' }}"
     ></textarea>
 
-    {% if this.getError('agreeToTerms') %}
+    {% if _errors.has('agreeToTerms') %}
         <div class="error">
-            {{ this.getError('agreeToTerms').message }}
+            {{ _errors.get('agreeToTerms') }}
         </div>
     {% endif %}
-    <input type="checkbox" data-model="agreeToTerms" class="{{ this.getError('agreeToTerms') ? 'has-error' : '' }}"/>
+    <input type="checkbox" data-model="agreeToTerms" class="{{ _errors.has('agreeToTerms') ? 'is-invalid' : '' }}"/>
 
     <button
         type="submit"
@@ -1940,7 +1939,7 @@ To validate only on "change", use the ``on(change)`` modifier:
     <input
         type="email"
         data-model="on(change)|user.email"
-        class="{{ this.getError('post.content') ? 'has-error' : '' }}"
+        class="{{ _errors.has('post.content') ? 'is-invalid' : '' }}"
     >
 
 Polling
@@ -2275,7 +2274,7 @@ attribute to the child:
 
     {{ component('textarea_field', {
         dataModel: 'content',
-        error: this.getError('content'),
+        error: _errors.get('content'),
     }) }}
 
 This does two things:
