@@ -22,7 +22,7 @@ class InvoiceItem
     private ?Product $product = null;
 
     #[ORM\Column]
-    private ?int $quantity = null;
+    private int $quantity = 1;
 
     public function getId(): ?int
     {
@@ -53,7 +53,7 @@ class InvoiceItem
         return $this;
     }
 
-    public function getQuantity(): ?int
+    public function getQuantity(): int
     {
         return $this->quantity;
     }
@@ -67,6 +67,10 @@ class InvoiceItem
 
     public function getSubtotal(): int
     {
+        if (!$this->product) {
+            return 0;
+        }
+
         return $this->product->getPrice() * $this->quantity;
     }
 }

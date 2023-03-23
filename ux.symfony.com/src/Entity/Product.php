@@ -47,4 +47,9 @@ class Product
 
         return $this;
     }
+
+    public function getPriceInCents(): float
+    {
+        return $this->price / 100;
+    }
 }

@@ -1,31 +1,99 @@
 <div {{ attributes }}>
-    <label>
-        Customer name:
-        <input type="text" data-model="invoice.customerName" value="{{ this.invoice.customerName }}">
-    </label>
+    <form data-action="live#action" data-action-name="prevent|saveInvoice">
+        <div class="mb-3">
+            <label for="customer-name">Customer name:</label>
+            <input
+                type="text"
+                data-model="invoice.customerName"
+                class="form-control {{ _errors.has('invoice.customerName') ? 'is-invalid' }}"
+                id="customer-name"
+            >
+            {% if _errors.has('invoice.customerName') %}
+                <div class="invalid-feedback">
+                    {{ _errors.get('invoice.customerName') }}
+                </div>
+            {% endif %}
+        </div>
 
-    <label>
-        Customer email:
-        <input type="email" data-model="invoice.customerEmail" value="{{ this.invoice.customerEmail }}">
-    </label>
+        <div class="mb-3">
+            <label for="customer-email">Billing Email:</label>
+            <input
+                type="email"
+                data-model="invoice.customerEmail"
+                class="form-control {{ _errors.has('invoice.customerEmail') ? 'is-invalid' }}"
+                id="customer-email"
+            >
+            {% if _errors.has('invoice.customerEmail') %}
+                <div class="invalid-feedback">
+                    {{ _errors.get('invoice.customerEmail') }}
+                </div>
+            {% endif %}
+        </div>
 
-    <button
-        data-action="live#action"
-        data-action-name="addProduct"
-    >Add product</button>
+        <div class="card">
+            <div class="card-header">Invoice Items</div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for index, item in invoice.invoiceItems %}
+                            {{ component('invoice_item', {
+                                product: item.product,
+                                quantity: item.quantity,
+                                index: index,
+                                isEditing: item == newItem
+                            }) }}
+                        {% endfor %}
+                    </tbody>
+                </table>
 
-    {% for key, item in this.invoice.invoiceItems %}
-        {{ component('invoice_item', {
-            dataModel: 'item:invoiceItem.'~key,
-        }) }}
-    {% endfor %}
+                <button
+                    data-action="live#action"
+                    data-action-name="addItem"
+                    class="btn btn-sm btn-secondary"
+                    type="button"
+                ><span class="fa fa-plus-circle"></span> Add Item</button>
+            </div>
+        </div>
 
-    <div>
-        <label>
-            Tax percentage:
-            <input type="number" data-model="invoice.taxRate" value="{{ this.invoice.taxRate }}">
-        </label>
-        <p>Subtotal: {{ this.invoice.getSubtotal() }}</p>
-        <p>Total: {{ this.getTotal() }}</p>
-    </div>
+        <div class="col-4 offset-8 mt-4">
+            <table class="table text-end">
+                <tbody>
+                    <tr>
+                        <th>Subtotal:</th>
+                        <td>{{ this.subtotal|format_currency('USD') }}</td>
+                    </tr>
+                    <tr>
+                        <th>Tax rate:</th>
+                        <td class="d-flex justify-content-end">
+                            <div style="width: 110px;" class="input-group {{ _errors.has('invoice.taxRate') ? 'is-invalid' }}">
+                                <input
+                                    type="number"
+                                    data-model="invoice.taxRate"
+                                    class="form-control"
+                                >
+                                <span class="input-group-text">%</span>
+                            </div>
+                            {% if _errors.has('invoice.taxRate') %}
+                                <div class="invalid-feedback">
+                                    {{ _errors.get('invoice.taxRate') }}
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Total:</th>
+                        <td>{{ this.total|format_currency('USD') }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <button class="btn btn-primary">Save Invoice</button>
+    </form>
 </div>

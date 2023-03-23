@@ -6,6 +6,7 @@ use App\Repository\InvoiceRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: InvoiceRepository::class)]
 class Invoice
@@ -16,15 +17,19 @@ class Invoice
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank]
     private ?string $customerName = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank]
+    #[Assert\Email]
     private ?string $customerEmail = null;
 
     #[ORM\Column]
-    private ?int $taxRate = null;
+    #[Assert\Range(min: 0, max: 100)]
+    private int $taxRate = 0;
 
-    #[ORM\OneToMany(mappedBy: 'invoice', targetEntity: InvoiceItem::class, orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'invoice', targetEntity: InvoiceItem::class, cascade: ['persist'], orphanRemoval: true)]
     private Collection $invoiceItems;
 
     public function __construct()
@@ -61,7 +66,7 @@ class Invoice
         return $this;
     }
 
-    public function getTaxRate(): ?int
+    public function getTaxRate(): int
     {
         return $this->taxRate;
     }
