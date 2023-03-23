@@ -52,7 +52,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     declare readonly listenersValue: Array<{ event: string; action: string }>;
     declare readonly hasDebounceValue: boolean;
     declare readonly debounceValue: number;
-    declare readonly fingerprintValue: string;
+    declare readonly fingerprintValue: string|undefined;
 
     /** The component, wrapped in the convenience Proxy */
     private proxiedComponent: Component;
@@ -83,7 +83,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
             this.propsValue,
             this.listenersValue,
             LiveControllerDefault.findComponents,
-            this.fingerprintValue,
+            this.fingerprintValue || null,
             id,
             new Backend(this.urlValue, this.csrfValue),
             new StandardElementDriver()

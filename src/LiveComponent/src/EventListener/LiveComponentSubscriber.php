@@ -203,7 +203,8 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
      *     data: array,
      *     args: array,
      *     actions: array
-     *     childrenFingerprints: array
+     *     // has "fingerprint" and "tag" string key, keyed by component id
+     *     children: array
      * }
      */
     private static function parseDataFor(Request $request): array
@@ -215,7 +216,7 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
                     'updated' => self::parseJsonFromQuery($request, 'updated'),
                     'args' => [],
                     'actions' => [],
-                    'childrenFingerprints' => self::parseJsonFromQuery($request, 'childrenFingerprints'),
+                    'children' => self::parseJsonFromQuery($request, 'children'),
                 ];
             } else {
                 $requestData = $request->toArray();
@@ -225,7 +226,7 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
                     'updated' => $requestData['updated'] ?? [],
                     'args' => $requestData['args'] ?? [],
                     'actions' => $requestData['actions'] ?? [],
-                    'childrenFingerprints' => $requestData['childrenFingerprints'] ?? [],
+                    'children' => $requestData['children'] ?? [],
                 ];
             }
 
@@ -343,7 +344,7 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
 
         $mountedComponent->addExtraMetadata(
             InterceptChildComponentRenderSubscriber::CHILDREN_FINGERPRINTS_METADATA_KEY,
-            $this->parseDataFor($request)['childrenFingerprints']
+            $this->parseDataFor($request)['children']
         );
 
         return $mountedComponent;

@@ -27,9 +27,13 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     readonly urlValue: string;
     readonly propsValue: any;
     readonly csrfValue: string;
+    readonly listenersValue: Array<{
+        event: string;
+        action: string;
+    }>;
     readonly hasDebounceValue: boolean;
     readonly debounceValue: number;
-    readonly fingerprintValue: string;
+    readonly fingerprintValue: string | undefined;
     private proxiedComponent;
     component: Component;
     pendingActionTriggerModelElement: HTMLElement | null;

@@ -305,15 +305,6 @@ function htmlToElement(html) {
     }
     return child;
 }
-function cloneElementWithNewTagName(element, newTag) {
-    const originalTag = element.tagName;
-    const startRX = new RegExp('^<' + originalTag, 'i');
-    const endRX = new RegExp(originalTag + '>$', 'i');
-    const startSubst = '<' + newTag;
-    const endSubst = newTag + '>';
-    const newHTML = element.outerHTML.replace(startRX, startSubst).replace(endRX, endSubst);
-    return htmlToElement(newHTML);
-}
 function getElementAsTagText(element) {
     return element.innerHTML
         ? element.outerHTML.slice(0, element.outerHTML.indexOf(element.innerHTML))
@@ -1201,14 +1192,6 @@ function executeMorphdom(rootFromElement, rootToElement, modifiedFieldElements, 
     const childComponentMap = new Map();
     childComponents.forEach((childComponent) => {
         childComponentMap.set(childComponent.element, childComponent);
-        if (!childComponent.id) {
-            throw new Error('Child is missing id.');
-        }
-        const childComponentToElement = findChildComponent(childComponent.id, rootToElement);
-        if (childComponentToElement && childComponentToElement.tagName !== childComponent.element.tagName) {
-            const newTag = cloneElementWithNewTagName(childComponentToElement, childComponent.element.tagName);
-            childComponentToElement.replaceWith(newTag);
-        }
     });
     morphdom(rootFromElement, rootToElement, {
         getNodeKey: (node) => {
@@ -2019,7 +2002,10 @@ class Component {
             if (!child.id) {
                 throw new Error('missing id');
             }
-            fingerprints[child.id] = child.fingerprint;
+            fingerprints[child.id] = {
+                fingerprint: child.fingerprint,
+                tag: child.element.tagName.toLowerCase(),
+            };
         });
         return fingerprints;
     }
@@ -2083,7 +2069,7 @@ class RequestBuilder {
         this.url = url;
         this.csrfToken = csrfToken;
     }
-    buildRequest(props, actions, updated, childrenFingerprints) {
+    buildRequest(props, actions, updated, children) {
         const splitUrl = this.url.split('?');
         let [url] = splitUrl;
         const [, queryString] = splitUrl;
@@ -2092,13 +2078,13 @@ class RequestBuilder {
         fetchOptions.headers = {
             Accept: 'application/vnd.live-component+html',
         };
-        const hasFingerprints = Object.keys(childrenFingerprints).length > 0;
+        const hasFingerprints = Object.keys(children).length > 0;
         if (actions.length === 0 &&
-            this.willDataFitInUrl(JSON.stringify(props), JSON.stringify(updated), params, JSON.stringify(childrenFingerprints))) {
+            this.willDataFitInUrl(JSON.stringify(props), JSON.stringify(updated), params, JSON.stringify(children))) {
             params.set('props', JSON.stringify(props));
             params.set('updated', JSON.stringify(updated));
             if (hasFingerprints) {
-                params.set('childrenFingerprints', JSON.stringify(childrenFingerprints));
+                params.set('children', JSON.stringify(children));
             }
             fetchOptions.method = 'GET';
         }
@@ -2107,7 +2093,7 @@ class RequestBuilder {
             fetchOptions.headers['Content-Type'] = 'application/json';
             const requestData = { props, updated };
             if (hasFingerprints) {
-                requestData.childrenFingerprints = childrenFingerprints;
+                requestData.children = children;
             }
             if (actions.length > 0) {
                 if (this.csrfToken) {
@@ -2130,8 +2116,8 @@ class RequestBuilder {
             fetchOptions,
         };
     }
-    willDataFitInUrl(propsJson, updatedJson, params, childrenFingerprintsJson) {
-        const urlEncodedJsonData = new URLSearchParams(propsJson + updatedJson + childrenFingerprintsJson).toString();
+    willDataFitInUrl(propsJson, updatedJson, params, childrenJson) {
+        const urlEncodedJsonData = new URLSearchParams(propsJson + updatedJson + childrenJson).toString();
         return (urlEncodedJsonData + params.toString()).length < 1500;
     }
 }
@@ -2140,8 +2126,8 @@ class Backend {
     constructor(url, csrfToken = null) {
         this.requestBuilder = new RequestBuilder(url, csrfToken);
     }
-    makeRequest(props, actions, updated, childrenFingerprints) {
-        const { url, fetchOptions } = this.requestBuilder.buildRequest(props, actions, updated, childrenFingerprints);
+    makeRequest(props, actions, updated, children) {
+        const { url, fetchOptions } = this.requestBuilder.buildRequest(props, actions, updated, children);
         return new BackendRequest(fetch(url, fetchOptions), actions.map((backendAction) => backendAction.name), Object.keys(updated));
     }
 }

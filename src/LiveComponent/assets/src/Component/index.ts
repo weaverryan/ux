@@ -1,4 +1,8 @@
-import { BackendAction, BackendInterface } from '../Backend/Backend';
+import {
+    BackendAction,
+    BackendInterface,
+    ChildrenFingerprints,
+} from '../Backend/Backend';
 import ValueStore from './ValueStore';
 import { normalizeModelName } from '../string_utils';
 import BackendRequest from '../Backend/BackendRequest';
@@ -568,8 +572,8 @@ export default class Component {
         modal.focus();
     }
 
-    private getChildrenFingerprints(): any {
-        const fingerprints: any = {};
+    private getChildrenFingerprints(): ChildrenFingerprints {
+        const fingerprints: ChildrenFingerprints = {};
 
         this.children.forEach((childComponent) => {
             const child = childComponent.component;
@@ -577,7 +581,10 @@ export default class Component {
                 throw new Error('missing id');
             }
 
-            fingerprints[child.id] = child.fingerprint;
+            fingerprints[child.id] = {
+                fingerprint: child.fingerprint as string,
+                tag: child.element.tagName.toLowerCase(),
+            }
         });
 
         return fingerprints;

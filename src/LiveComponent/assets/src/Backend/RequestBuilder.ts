@@ -1,4 +1,4 @@
-import { BackendAction } from './Backend';
+import { BackendAction, ChildrenFingerprints } from './Backend';
 
 export default class {
     private url: string;
@@ -13,7 +13,7 @@ export default class {
         props: any,
         actions: BackendAction[],
         updated: {[key: string]: any},
-        childrenFingerprints: any
+        children: ChildrenFingerprints,
     ): { url: string; fetchOptions: RequestInit } {
         const splitUrl = this.url.split('?');
         let [url] = splitUrl;
@@ -25,15 +25,15 @@ export default class {
             Accept: 'application/vnd.live-component+html',
         };
 
-        const hasFingerprints = Object.keys(childrenFingerprints).length > 0;
+        const hasFingerprints = Object.keys(children).length > 0;
         if (
             actions.length === 0 &&
-            this.willDataFitInUrl(JSON.stringify(props), JSON.stringify(updated), params, JSON.stringify(childrenFingerprints))
+            this.willDataFitInUrl(JSON.stringify(props), JSON.stringify(updated), params, JSON.stringify(children))
         ) {
             params.set('props', JSON.stringify(props));
             params.set('updated', JSON.stringify(updated));
             if (hasFingerprints) {
-                params.set('childrenFingerprints', JSON.stringify(childrenFingerprints));
+                params.set('children', JSON.stringify(children));
             }
             fetchOptions.method = 'GET';
         } else {
@@ -41,7 +41,7 @@ export default class {
             fetchOptions.headers['Content-Type'] = 'application/json';
             const requestData: any = { props, updated };
             if (hasFingerprints) {
-                requestData.childrenFingerprints = childrenFingerprints;
+                requestData.children = children;
             }
 
             if (actions.length > 0) {
@@ -72,8 +72,8 @@ export default class {
         }
     }
 
-    private willDataFitInUrl(propsJson: string, updatedJson: string, params: URLSearchParams, childrenFingerprintsJson: string) {
-        const urlEncodedJsonData = new URLSearchParams(propsJson + updatedJson + childrenFingerprintsJson).toString();
+    private willDataFitInUrl(propsJson: string, updatedJson: string, params: URLSearchParams, childrenJson: string) {
+        const urlEncodedJsonData = new URLSearchParams(propsJson + updatedJson + childrenJson).toString();
 
         // if the URL gets remotely close to 2000 chars, it may not fit
         return (urlEncodedJsonData + params.toString()).length < 1500;

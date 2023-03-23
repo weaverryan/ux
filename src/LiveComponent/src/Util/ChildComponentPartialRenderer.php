@@ -33,7 +33,7 @@ class ChildComponentPartialRenderer implements ServiceSubscriberInterface
     ) {
     }
 
-    public function renderChildComponent(string $deterministicId, string $currentPropsFingerprint, string $componentName, array $inputProps): string
+    public function renderChildComponent(string $deterministicId, string $currentPropsFingerprint, string $childTag, string $componentName, array $inputProps): string
     {
         $newPropsFingerprint = $this->fingerprintCalculator->calculateFingerprint($inputProps);
 
@@ -44,7 +44,7 @@ class ChildComponentPartialRenderer implements ServiceSubscriberInterface
             $attributesCollection = $this->attributeHelperFactory->create();
             $attributesCollection->setLiveId($deterministicId);
 
-            return $this->createHtml($attributesCollection->toEscapedArray());
+            return $this->createHtml($attributesCollection->toEscapedArray(), $childTag);
         }
 
         /*
@@ -77,20 +77,20 @@ class ChildComponentPartialRenderer implements ServiceSubscriberInterface
         unset($attributes['data-live-url-value']);
         unset($attributes['data-live-csrf-value']);
 
-        return $this->createHtml($attributes);
+        return $this->createHtml($attributes, $childTag);
     }
 
     /**
      * @param array<string, string> $attributes
      */
-    private function createHtml(array $attributes): string
+    private function createHtml(array $attributes, string $childTag): string
     {
         // transform attributes into an array of key="value" strings
         $attributes = array_map(function ($key, $value) {
             return sprintf('%s="%s"', $key, $value);
         }, array_keys($attributes), $attributes);
 
-        return sprintf('<div %s></div>', implode(' ', $attributes));
+        return sprintf('<%s %s></%s>', $childTag, implode(' ', $attributes), $childTag);
     }
 
     public static function getSubscribedServices(): array
