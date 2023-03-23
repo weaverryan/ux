@@ -5,7 +5,9 @@ export default class {
     constructor(url: string, csrfToken?: string | null);
     buildRequest(props: any, actions: BackendAction[], updated: {
         [key: string]: any;
-    }, children: ChildrenFingerprints): {
+    }, children: ChildrenFingerprints, updatedPropsFromParent: {
+        [key: string]: any;
+    }): {
         url: string;
         fetchOptions: RequestInit;
     };

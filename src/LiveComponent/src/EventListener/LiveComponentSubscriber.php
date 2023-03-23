@@ -205,6 +205,7 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
      *     actions: array
      *     // has "fingerprint" and "tag" string key, keyed by component id
      *     children: array
+     *     propsFromParent: array
      * }
      */
     private static function parseDataFor(Request $request): array
@@ -217,6 +218,7 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
                     'args' => [],
                     'actions' => [],
                     'children' => self::parseJsonFromQuery($request, 'children'),
+                    'propsFromParent' => self::parseJsonFromQuery($request, 'propsFromParent'),
                 ];
             } else {
                 $requestData = $request->toArray();
@@ -227,6 +229,7 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
                     'args' => $requestData['args'] ?? [],
                     'actions' => $requestData['actions'] ?? [],
                     'children' => $requestData['children'] ?? [],
+                    'propsFromParent' => $requestData['propsFromParent'] ?? [],
                 ];
             }
 
@@ -337,7 +340,8 @@ class LiveComponentSubscriber implements EventSubscriberInterface, ServiceSubscr
             $component,
             $this->parseDataFor($request)['props'],
             $this->parseDataFor($request)['updated'],
-            $metadataFactory->getMetadata($componentName)
+            $metadataFactory->getMetadata($componentName),
+            $this->parseDataFor($request)['propsFromParent']
         );
 
         $mountedComponent = new MountedComponent($componentName, $component, $componentAttributes);

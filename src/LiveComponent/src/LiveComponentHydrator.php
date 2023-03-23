@@ -166,13 +166,23 @@ final class LiveComponentHydrator
      *
      *     ['name' => 'kevin', 'food.name' => 'Pasta']
      */
-    public function hydrate(object $component, array $props, array $updatedProps, LiveComponentMetadata $componentMetadata): ComponentAttributes
+    public function hydrate(object $component, array $props, array $updatedProps, LiveComponentMetadata $componentMetadata, array $updatedPropsFromParent = []): ComponentAttributes
     {
         $dehydratedOriginalProps = DehydratedProps::createFromPropsArray($props);
         $dehydratedUpdatedProps = DehydratedProps::createFromUpdatedArray($updatedProps);
 
         $this->verifyChecksum($dehydratedOriginalProps->getProps());
         $dehydratedOriginalProps->removePropValue(self::CHECKSUM_KEY);
+
+        // if a parent component is requesting some updates to the props, verify
+        // their checksum and apply them as "original props"
+        if (count($updatedPropsFromParent) > 0) {
+            $this->verifyChecksum($updatedPropsFromParent, 'Invalid checksum for the data sent from the parent component.');
+            unset($updatedPropsFromParent[self::CHECKSUM_KEY]);
+            foreach ($updatedPropsFromParent as $key => $value) {
+                $dehydratedOriginalProps->addPropValue($key, $value);
+            }
+        }
 
         $attributes = new ComponentAttributes($dehydratedOriginalProps->getPropValue(self::ATTRIBUTES_KEY, []));
         $dehydratedOriginalProps->removePropValue(self::ATTRIBUTES_KEY);
@@ -265,9 +275,11 @@ final class LiveComponentHydrator
         return $attributes;
     }
 
-    public static function getInternalPropNames(): array
+    public function addChecksumToData(array $data): array
     {
-        return [self::ATTRIBUTES_KEY, self::CHECKSUM_KEY];
+        $data[self::CHECKSUM_KEY] = $this->calculateChecksum($data);
+
+        return $data;
     }
 
     private static function coerceScalarValue(string $value, string $type, bool $allowsNull): int|float|bool|null
@@ -294,7 +306,7 @@ final class LiveComponentHydrator
         return base64_encode(hash_hmac('sha256', json_encode($dehydratedPropsData), $this->secret, true));
     }
 
-    private function verifyChecksum(array $identifierPops): void
+    private function verifyChecksum(array $identifierPops, string $error = 'Invalid checksum sent when updating the live component.'): void
     {
         if (!\array_key_exists(self::CHECKSUM_KEY, $identifierPops)) {
             throw new HydrationException(sprintf('Missing %s. key', self::CHECKSUM_KEY));
@@ -308,7 +320,7 @@ final class LiveComponentHydrator
             return;
         }
 
-        throw new HydrationException('Invalid checksum sent when updating the live component.');
+        throw new HydrationException($error);
     }
 
     /**
@@ -553,48 +565,6 @@ EOF
 
         throw NotNormalizableValueException::createForUnexpectedDataType(sprintf('The type of the "%s" attribute for class "%s" must be one of "%s" ("%s" given).', $fullPathForErrors, $currentClass, implode('", "', array_keys($expectedTypes)), get_debug_type($data)), $data, array_keys($expectedTypes), $context['deserialization_path'] ?? $fullPathForErrors);
         /* END DUPLICATION */
-
-        if (\is_string($value) && \in_array($typeString, ['int', 'float', 'bool'], true)) {
-            return self::coerceScalarValue($value, $typeString, $allowsNull);
-        }
-
-        if (null === $value || null === $typeString || $isBuiltIn) {
-            return $value;
-        }
-
-        try {
-            return $this->normalizer->denormalize(
-                $value,
-                $typeString,
-                'json',
-                array_merge([self::LIVE_CONTEXT => true], $denormalizationContext)
-            );
-        } catch (ExceptionInterface $exception) {
-            $json = json_encode($value);
-            $message = sprintf(<<<EOF
-'The normalizer was used to denormalize the "%s.%s" property, but it failed:
-
-> %s
-
-Fix the error, or use the hydrateWith/dehydrateWith options to control the (de)hydration process.'
-EOF,
-                $componentClass,
-                $fullPathForErrors,
-                $exception->getMessage()
-            );
-
-            // unless the data is gigantic, include it in the error to help
-            if (\strlen($json) < 1000) {
-                $message .= sprintf(<<<EOF
-The data that was used for denormalizing was:
-
-%s
-EOF
-                    , $json);
-            }
-
-            throw new HydrationException($message, $exception);
-        }
     }
 
     private function hydrateLiveProp(object $component, $propMetadata, ?array $types, mixed $dehydratedProp): mixed

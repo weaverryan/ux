@@ -290,7 +290,7 @@ export default class Component {
         }
 
         // push props directly down onto the value store
-        const isChanged = this.valueStore.reinitializeProvidedProps(props);
+        const isChanged = this.valueStore.storeNewPropsFromParent(props);
 
         const fingerprint = toEl.dataset.liveFingerprintValue;
         if (fingerprint !== undefined) {
@@ -300,8 +300,6 @@ export default class Component {
         if (isChanged) {
             this.render();
         }
-
-        return;
     }
 
     /**
@@ -359,7 +357,8 @@ export default class Component {
             this.valueStore.getOriginalProps(),
             this.pendingActions,
             this.valueStore.getDirtyProps(),
-            this.getChildrenFingerprints()
+            this.getChildrenFingerprints(),
+            this.valueStore.getUpdatedPropsFromParent(),
         );
         this.hooks.triggerHook('loading.state:started', this.element, this.backendRequest);
 

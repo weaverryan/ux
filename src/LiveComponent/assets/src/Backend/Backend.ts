@@ -12,6 +12,7 @@ export interface BackendInterface {
         actions: BackendAction[],
         updated: {[key: string]: any},
         children: ChildrenFingerprints,
+        updatedPropsFromParent: {[key: string]: any},
     ): BackendRequest;
 }
 
@@ -32,12 +33,14 @@ export default class implements BackendInterface {
         actions: BackendAction[],
         updated: {[key: string]: any},
         children: ChildrenFingerprints,
+        updatedPropsFromParent: {[key: string]: any},
     ): BackendRequest {
         const { url, fetchOptions } = this.requestBuilder.buildRequest(
             props,
             actions,
             updated,
-            children
+            children,
+            updatedPropsFromParent
         );
 
         return new BackendRequest(

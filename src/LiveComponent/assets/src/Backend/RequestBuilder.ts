@@ -14,6 +14,7 @@ export default class {
         actions: BackendAction[],
         updated: {[key: string]: any},
         children: ChildrenFingerprints,
+        updatedPropsFromParent: {[key: string]: any},
     ): { url: string; fetchOptions: RequestInit } {
         const splitUrl = this.url.split('?');
         let [url] = splitUrl;
@@ -28,10 +29,11 @@ export default class {
         const hasFingerprints = Object.keys(children).length > 0;
         if (
             actions.length === 0 &&
-            this.willDataFitInUrl(JSON.stringify(props), JSON.stringify(updated), params, JSON.stringify(children))
+            this.willDataFitInUrl(JSON.stringify(props), JSON.stringify(updated), params, JSON.stringify(children), JSON.stringify(updatedPropsFromParent))
         ) {
             params.set('props', JSON.stringify(props));
             params.set('updated', JSON.stringify(updated));
+            params.set('propsFromParent', JSON.stringify(updatedPropsFromParent));
             if (hasFingerprints) {
                 params.set('children', JSON.stringify(children));
             }
@@ -39,7 +41,11 @@ export default class {
         } else {
             fetchOptions.method = 'POST';
             fetchOptions.headers['Content-Type'] = 'application/json';
-            const requestData: any = { props, updated };
+            const requestData: any = {
+                props,
+                updated,
+                propsFromParent: updatedPropsFromParent,
+            };
             if (hasFingerprints) {
                 requestData.children = children;
             }
@@ -72,8 +78,8 @@ export default class {
         }
     }
 
-    private willDataFitInUrl(propsJson: string, updatedJson: string, params: URLSearchParams, childrenJson: string) {
-        const urlEncodedJsonData = new URLSearchParams(propsJson + updatedJson + childrenJson).toString();
+    private willDataFitInUrl(propsJson: string, updatedJson: string, params: URLSearchParams, childrenJson: string, propsFromParentJson: string) {
+        const urlEncodedJsonData = new URLSearchParams(propsJson + updatedJson + childrenJson + propsFromParentJson).toString();
 
         // if the URL gets remotely close to 2000 chars, it may not fit
         return (urlEncodedJsonData + params.toString()).length < 1500;

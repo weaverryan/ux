@@ -332,7 +332,7 @@ describe('ValueStore', () => {
     reinitializeProvidedPropsDataset.forEach(({ props, newProps, expectedProps, changed }) => {
         it(`reinitializeProvidedProps(${JSON.stringify(newProps)}) with data ${JSON.stringify(props)} results in ${JSON.stringify(expectedProps)}`, () => {
             const store = new ValueStore(props);
-            const actualChanged = store.reinitializeProvidedProps(newProps);
+            const actualChanged = store.storeNewPropsFromParent(newProps);
             expect(store.getOriginalProps()).toEqual(expectedProps);
             expect(actualChanged).toEqual(changed);
         });

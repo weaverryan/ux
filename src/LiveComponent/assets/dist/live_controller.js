@@ -356,6 +356,7 @@ class ValueStore {
         this.props = {};
         this.dirtyProps = {};
         this.pendingProps = {};
+        this.updatedPropsFromParent = {};
         this.props = props;
     }
     get(name) {
@@ -389,27 +390,34 @@ class ValueStore {
     getDirtyProps() {
         return Object.assign({}, this.dirtyProps);
     }
+    getUpdatedPropsFromParent() {
+        return Object.assign({}, this.updatedPropsFromParent);
+    }
     flushDirtyPropsToPending() {
         this.pendingProps = Object.assign({}, this.dirtyProps);
         this.dirtyProps = {};
     }
     reinitializeAllProps(props) {
         this.props = props;
+        this.updatedPropsFromParent = {};
         this.pendingProps = {};
     }
     pushPendingPropsBackToDirty() {
         this.dirtyProps = Object.assign(Object.assign({}, this.pendingProps), this.dirtyProps);
         this.pendingProps = {};
     }
-    reinitializeProvidedProps(props) {
+    storeNewPropsFromParent(props) {
         let changed = false;
         for (const [key, value] of Object.entries(props)) {
             const currentValue = this.get(key);
             if (currentValue !== value) {
                 changed = true;
-                this.props[key] = value;
             }
         }
+        if (changed) {
+            this.updatedPropsFromParent = props;
+        }
+        console.log(props, changed);
         return changed;
     }
 }
@@ -1854,7 +1862,7 @@ class Component {
         if (props === null) {
             return;
         }
-        const isChanged = this.valueStore.reinitializeProvidedProps(props);
+        const isChanged = this.valueStore.storeNewPropsFromParent(props);
         const fingerprint = toEl.dataset.liveFingerprintValue;
         if (fingerprint !== undefined) {
             this.fingerprint = fingerprint;
@@ -1891,7 +1899,7 @@ class Component {
         const thisPromiseResolve = this.nextRequestPromiseResolve;
         this.resetPromise();
         this.unsyncedInputsTracker.resetUnsyncedFields();
-        this.backendRequest = this.backend.makeRequest(this.valueStore.getOriginalProps(), this.pendingActions, this.valueStore.getDirtyProps(), this.getChildrenFingerprints());
+        this.backendRequest = this.backend.makeRequest(this.valueStore.getOriginalProps(), this.pendingActions, this.valueStore.getDirtyProps(), this.getChildrenFingerprints(), this.valueStore.getUpdatedPropsFromParent());
         this.hooks.triggerHook('loading.state:started', this.element, this.backendRequest);
         this.pendingActions = [];
         this.valueStore.flushDirtyPropsToPending();
@@ -2114,7 +2122,7 @@ class RequestBuilder {
         this.url = url;
         this.csrfToken = csrfToken;
     }
-    buildRequest(props, actions, updated, children) {
+    buildRequest(props, actions, updated, children, updatedPropsFromParent) {
         const splitUrl = this.url.split('?');
         let [url] = splitUrl;
         const [, queryString] = splitUrl;
@@ -2125,9 +2133,10 @@ class RequestBuilder {
         };
         const hasFingerprints = Object.keys(children).length > 0;
         if (actions.length === 0 &&
-            this.willDataFitInUrl(JSON.stringify(props), JSON.stringify(updated), params, JSON.stringify(children))) {
+            this.willDataFitInUrl(JSON.stringify(props), JSON.stringify(updated), params, JSON.stringify(children), JSON.stringify(updatedPropsFromParent))) {
             params.set('props', JSON.stringify(props));
             params.set('updated', JSON.stringify(updated));
+            params.set('propsFromParent', JSON.stringify(updatedPropsFromParent));
             if (hasFingerprints) {
                 params.set('children', JSON.stringify(children));
             }
@@ -2136,7 +2145,11 @@ class RequestBuilder {
         else {
             fetchOptions.method = 'POST';
             fetchOptions.headers['Content-Type'] = 'application/json';
-            const requestData = { props, updated };
+            const requestData = {
+                props,
+                updated,
+                propsFromParent: updatedPropsFromParent,
+            };
             if (hasFingerprints) {
                 requestData.children = children;
             }
@@ -2161,8 +2174,8 @@ class RequestBuilder {
             fetchOptions,
         };
     }
-    willDataFitInUrl(propsJson, updatedJson, params, childrenJson) {
-        const urlEncodedJsonData = new URLSearchParams(propsJson + updatedJson + childrenJson).toString();
+    willDataFitInUrl(propsJson, updatedJson, params, childrenJson, propsFromParentJson) {
+        const urlEncodedJsonData = new URLSearchParams(propsJson + updatedJson + childrenJson + propsFromParentJson).toString();
         return (urlEncodedJsonData + params.toString()).length < 1500;
     }
 }
@@ -2171,8 +2184,8 @@ class Backend {
     constructor(url, csrfToken = null) {
         this.requestBuilder = new RequestBuilder(url, csrfToken);
     }
-    makeRequest(props, actions, updated, children) {
-        const { url, fetchOptions } = this.requestBuilder.buildRequest(props, actions, updated, children);
+    makeRequest(props, actions, updated, children, updatedPropsFromParent) {
+        const { url, fetchOptions } = this.requestBuilder.buildRequest(props, actions, updated, children, updatedPropsFromParent);
         return new BackendRequest(fetch(url, fetchOptions), actions.map((backendAction) => backendAction.name), Object.keys(updated));
     }
 }

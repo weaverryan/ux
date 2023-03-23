@@ -53,7 +53,7 @@ class ChildComponentPartialRenderer implements ServiceSubscriberInterface
          * Send back a fake element with:
          *      * data-live-id
          *      * data-live-fingerprint-value (new fingerprint)
-         *      * data-live-props-value (new READONLY dehydrated props)
+         *      * data-live-props-value (dehydrated props that "accept updates from parent")
          */
         $mounted = $this->getComponentFactory()->create($componentName, $inputProps);
         $attributesCollection = $this->getAttributesCreator()->attributesForRendering(
@@ -67,8 +67,7 @@ class ChildComponentPartialRenderer implements ServiceSubscriberInterface
 
         // only send back the props that are allowed to be updated from the parent
         $readonlyDehydratedProps = $liveMetadata->getOnlyPropsThatAcceptUpdatesFromParent($props);
-        // add back @checksum & @attributes
-        $readonlyDehydratedProps = array_merge($readonlyDehydratedProps, array_intersect_key($props, array_flip(LiveComponentHydrator::getInternalPropNames())));
+        $readonlyDehydratedProps = $this->getLiveComponentHydrator()->addChecksumToData($readonlyDehydratedProps);
 
         $attributesCollection->setProps($readonlyDehydratedProps);
         $attributes = $attributesCollection->toEscapedArray();
