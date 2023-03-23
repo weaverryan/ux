@@ -42,14 +42,16 @@ class LiveComponentMetadata
         return $this->livePropsMetadata;
     }
 
-    public function getReadonlyPropPaths(): array
+    public function getOnlyPropsThatAcceptUpdatesFromParent(array $props): array
     {
-        $writableProps = array_filter($this->livePropsMetadata, function ($livePropMetadata) {
-            return !$livePropMetadata->isIdentityWritable();
+        $writableProps = array_filter($this->livePropsMetadata, function (LivePropMetadata $livePropMetadata) {
+            return $livePropMetadata->acceptUpdatesFromParent();
         });
 
-        return array_map(function ($livePropMetadata) {
+        $propNames = array_map(function ($livePropMetadata) {
             return $livePropMetadata->getName();
         }, $writableProps);
+
+        return array_intersect_key($props, array_flip($propNames));
     }
 }

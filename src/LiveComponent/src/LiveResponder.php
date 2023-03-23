@@ -35,7 +35,7 @@ final class LiveResponder
         ];
     }
 
-    public function emitUp(string $eventName, array $data, string $componentName = null): void
+    public function emitUp(string $eventName, array $data = [], string $componentName = null): void
     {
         $this->eventsToEmit[] = [
             'event' => $eventName,

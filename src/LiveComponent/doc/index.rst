@@ -1982,6 +1982,8 @@ You can also trigger a specific "action" instead of a normal re-render:
         #}
     >
 
+.. _emit:
+
 Communication Between Components: Emitting Events
 -------------------------------------------------
 
@@ -2106,7 +2108,7 @@ use the ``name()`` modifier:
 
     <button
         data-action="live#emit"
-        data-event="name(product_list)|productAdded"
+        data-event="component(product_list)|productAdded"
     >
 
 Or, in PHP::
@@ -2135,7 +2137,7 @@ Nested Components
 Need to nest one live component inside another one? No problem! As a
 rule of thumb, **each component exists in its own, isolated universe**.
 This means that if a parent component re-renders, it won't automatically
-cause the child to re-render (but it *may* - keep reading). Or, if
+cause the child to re-render (but it *can* - keep reading). Or, if
 a model in a child updates, it won't also update that model in its parent
 (but it *can* - keep reading).
 
@@ -2145,10 +2147,10 @@ it behave exactly like you need.
 Each component re-renders independent of one another
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If a parent component re-renders, this may or may not cause the child
-component to send its own Ajax request to re-render. What determines
-that? Let's look at an example of a todo list component with a child
-that renders the total number of todo items:
+If a parent component re-renders, this won't, by default, cause any child
+components to re-render, but you *can* make it do that. Let's look at an
+example of a todo list component with a child that renders the total number of
+todo items:
 
 .. code-block:: twig
 
@@ -2166,25 +2168,33 @@ that renders the total number of todo items:
     </div>
 
 Suppose the user updates the ``listName`` model and the parent component
-re-renders. In this case, the child component will *not* re-render. Why?
-Because the live components system will detect that none of the values passed
-*into* ``todo_footer`` (just ``count`` in this case). Have change. If no inputs
-to the child changed, there's no need to re-render it.
+re-renders. In this case, the child component will *not* re-render by design:
+each component lives in its own universe.
 
-But if the user added a *new* todo item and the number of todos changed from
-5 to 6, this *would* change the ``count`` value that's passed into the ``todo_footer``.
-In this case, immediately after the parent component re-renders, the child
-request will make a second Ajax request to render itself. Smart!
+However, if the user adds a *new* todo item then we *do* want the ``todo_footer``
+child component to re-render: using the new ``count`` value. To trigger this,
+in the ``todo_footer`` component, add the ``updateFromParent`` option::
+
+    #[LiveComponent('todo_footer')]
+    class TodoFooterComponent
+    {
+        #[LiveProp(updateFromParent: true)]
+        public int $count = 0;
+    }
+
+Now, when the parent component re-renders, if the value of the ``count`` prop
+changes, the child will make a second Ajax request to re-render itself.
 
 Child components keep their modifiable LiveProp values
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-But suppose that the ``todo_footer`` in the previous example also has
+What if the ``todo_footer`` component in the previous example also has
 an ``isVisible`` ``LiveProp(writable: true)`` property which starts as
 ``true`` but can be changed (via a link click) to ``false``. Will
-re-rendering the child cause this to be reset back to its original
-value? Nope! When the child component re-renders, it will keep the
-current value for any of its writable props.
+re-rendering the child when ``count`` changes cause this to be reset back to its
+original value? Nope! When the child component re-renders, it will keep the
+current value for all props, except for those that are marked as
+``updateFromParent``.
 
 What if you *do* want your entire child component to re-render (including
 resetting writable live props) when some value in the parent changes? This
@@ -2222,6 +2232,24 @@ When the user clicks that button, it will attempt to call the ``save``
 action in the *child* component only, even if the ``save`` action
 actually only exists in the parent. The same is true for ``data-model``,
 though there is some special handling for this case (see next point).
+
+Communicating with a Parent Component
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are two main ways to communicate from a child component to a parent
+component:
+
+1. :ref:`Emitting events <emit>`
+
+    The most flexible way to communicate: any information can be sent
+    from the child to the parent.
+
+2. :ref:`Updating a parent model from a child <update-parent-model>`
+
+    Useful as a simple way to "synchronize" a child model with a parent
+    model: when the child model changes, the parent model will also change.
+
+.. _data-model:
 
 Updating a Parent Model from a Child
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

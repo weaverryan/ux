@@ -1210,7 +1210,8 @@ function executeMorphdom(rootFromElement, rootToElement, modifiedFieldElements, 
             if (fromEl instanceof HTMLElement && toEl instanceof HTMLElement) {
                 if (childComponentMap.has(fromEl)) {
                     const childComponent = childComponentMap.get(fromEl);
-                    return childComponent.updateFromNewElement(toEl);
+                    childComponent.updateFromNewElementFromParentRender(toEl);
+                    return false;
                 }
                 if (modifiedFieldElements.includes(fromEl)) {
                     setValueOnElement(toEl, getElementValue(fromEl));
@@ -1711,7 +1712,7 @@ class ChildComponentWrapper {
     }
 }
 class Component {
-    constructor(element, props, fingerprint, id, backend, elementDriver) {
+    constructor(element, props, listeners, componentFinder, fingerprint, id, backend, elementDriver) {
         this.defaultDebounce = 150;
         this.backendRequest = null;
         this.pendingActions = [];
@@ -1720,10 +1721,18 @@ class Component {
         this.children = new Map();
         this.parent = null;
         this.element = element;
+        this.componentFinder = componentFinder;
         this.backend = backend;
         this.elementDriver = elementDriver;
         this.id = id;
         this.fingerprint = fingerprint;
+        this.listeners = new Map();
+        listeners.forEach((listener) => {
+            if (!this.listeners.has(listener.event)) {
+                this.listeners.set(listener.event, []);
+            }
+            this.listeners.get(listener.event).push(listener.action);
+        });
         this.valueStore = new ValueStore(props);
         this.unsyncedInputsTracker = new UnsyncedInputsTracker(this, elementDriver);
         this.hooks = new HookManager();
@@ -1816,10 +1825,34 @@ class Component {
         });
         return children;
     }
-    updateFromNewElement(toEl) {
+    emit(name, data, onlyMatchingComponentsNamed = null) {
+        return this.performEmit(name, data, false, onlyMatchingComponentsNamed);
+    }
+    emitUp(name, data, onlyMatchingComponentsNamed = null) {
+        return this.performEmit(name, data, true, onlyMatchingComponentsNamed);
+    }
+    emitSelf(name, data) {
+        return this.doEmit(name, data);
+    }
+    performEmit(name, data, emitUp, matchingName) {
+        const components = this.componentFinder(this, emitUp, matchingName);
+        components.forEach((component) => {
+            component.doEmit(name, data);
+        });
+    }
+    doEmit(name, data) {
+        if (!this.listeners.has(name)) {
+            return;
+        }
+        const actions = this.listeners.get(name) || [];
+        actions.forEach((action) => {
+            this.action(action, data, 1);
+        });
+    }
+    updateFromNewElementFromParentRender(toEl) {
         const props = this.elementDriver.getComponentProps(toEl);
         if (props === null) {
-            return false;
+            return;
         }
         const isChanged = this.valueStore.reinitializeProvidedProps(props);
         const fingerprint = toEl.dataset.liveFingerprintValue;
@@ -1829,7 +1862,7 @@ class Component {
         if (isChanged) {
             this.render();
         }
-        return false;
+        return;
     }
     onChildComponentModelUpdate(modelName, value, childComponent) {
         if (!childComponent.id) {
@@ -1920,12 +1953,24 @@ class Component {
         }
         const newProps = this.elementDriver.getComponentProps(newElement);
         this.valueStore.reinitializeAllProps(newProps);
+        const eventsToEmit = this.elementDriver.getEventsToEmit(newElement);
         this.externalMutationTracker.handlePendingChanges();
         this.externalMutationTracker.stop();
         executeMorphdom(this.element, newElement, this.unsyncedInputsTracker.getUnsyncedInputs(), (element) => getValueFromElement(element, this.valueStore), Array.from(this.getChildren().values()), this.elementDriver.findChildComponentElement, this.elementDriver.getKeyFromElement, this.externalMutationTracker);
         this.externalMutationTracker.start();
         Object.keys(modifiedModelValues).forEach((modelName) => {
             this.valueStore.set(modelName, modifiedModelValues[modelName]);
+        });
+        eventsToEmit.forEach(({ event, data, target, componentName }) => {
+            if (target === 'up') {
+                this.emitUp(event, data, componentName);
+                return;
+            }
+            if (target === 'self') {
+                this.emitSelf(event, data);
+                return;
+            }
+            this.emit(event, data, componentName);
         });
         this.hooks.triggerHook('render:finished', this);
     }
@@ -2150,6 +2195,11 @@ class StandardElementDriver {
     }
     getKeyFromElement(element) {
         return element.dataset.liveId || null;
+    }
+    getEventsToEmit(element) {
+        var _a;
+        const eventsJson = (_a = element.dataset.liveEmit) !== null && _a !== void 0 ? _a : '[]';
+        return JSON.parse(eventsJson);
     }
 }
 
@@ -2568,7 +2618,7 @@ class LiveControllerDefault extends Controller {
     initialize() {
         this.handleDisconnectedChildControllerEvent = this.handleDisconnectedChildControllerEvent.bind(this);
         const id = this.element.dataset.liveId || null;
-        this.component = new Component(this.element, this.propsValue, this.fingerprintValue, id, new Backend(this.urlValue, this.csrfValue), new StandardElementDriver());
+        this.component = new Component(this.element, this.propsValue, this.listenersValue, LiveControllerDefault.findComponents, this.fingerprintValue, id, new Backend(this.urlValue, this.csrfValue), new StandardElementDriver());
         this.proxiedComponent = proxifyComponent(this.component);
         this.element.__component = this.proxiedComponent;
         if (this.hasDebounceValue) {
@@ -2586,6 +2636,7 @@ class LiveControllerDefault extends Controller {
         });
     }
     connect() {
+        LiveControllerDefault.componentMap.set(this.component, this.nameValue);
         this.component.connect();
         this.elementEventListeners.forEach(({ event, callback }) => {
             this.component.element.addEventListener(event, callback);
@@ -2594,6 +2645,7 @@ class LiveControllerDefault extends Controller {
         this.dispatchEvent('connect');
     }
     disconnect() {
+        LiveControllerDefault.componentMap.delete(this.component);
         this.component.disconnect();
         this.elementEventListeners.forEach(({ event, callback }) => {
             this.component.element.removeEventListener(event, callback);
@@ -2644,6 +2696,37 @@ class LiveControllerDefault extends Controller {
     }
     $render() {
         return this.component.render();
+    }
+    emit(event) {
+        this.getEmitDirectives(event).forEach(({ name, data }) => {
+            this.component.emit(name, data);
+        });
+    }
+    emitUp(event) {
+        this.getEmitDirectives(event).forEach(({ name, data }) => {
+            this.component.emitUp(name, data);
+        });
+    }
+    emitSelf(event) {
+        this.getEmitDirectives(event).forEach(({ name, data }) => {
+            this.component.emitSelf(name, data);
+        });
+    }
+    getEmitDirectives(event) {
+        const element = event.target;
+        if (!element.dataset.event) {
+            throw new Error(`No data-event attribute found on element: ${getElementAsTagText(element)}`);
+        }
+        const eventInfo = element.dataset.event;
+        const directives = parseDirectives(eventInfo);
+        const emits = [];
+        directives.forEach((directive) => {
+            emits.push({
+                name: directive.action,
+                data: directive.named
+            });
+        });
+        return emits;
     }
     $updateModel(model, value, shouldRender = true, debounce = true) {
         return this.component.set(model, value, shouldRender, debounce);
@@ -2723,14 +2806,31 @@ class LiveControllerDefault extends Controller {
         detail.component = this.proxiedComponent;
         this.dispatch(name, { detail, prefix: 'live', cancelable, bubbles: canBubble });
     }
+    static findComponents(currentComponent, onlyParents, onlyMatchName) {
+        const components = [];
+        LiveControllerDefault.componentMap.forEach((componentName, component) => {
+            if (onlyParents &&
+                (currentComponent === component || !component.element.contains(currentComponent.element))) {
+                return;
+            }
+            if (onlyMatchName && componentName !== onlyMatchName) {
+                return;
+            }
+            components.push(component);
+        });
+        return components;
+    }
 }
 LiveControllerDefault.values = {
+    name: String,
     url: String,
     props: Object,
     csrf: String,
+    listeners: { type: Array, default: [] },
     debounce: { type: Number, default: 150 },
     id: String,
-    fingerprint: String,
+    fingerprint: { type: String, default: '' },
 };
+LiveControllerDefault.componentMap = new Map();
 
 export { Component, LiveControllerDefault as default, getComponent };

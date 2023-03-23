@@ -74,6 +74,7 @@ export default class Component {
      * @param element The root element
      * @param props   Readonly component props
      * @param listeners Array of event -> action listeners
+     * @param componentFinder
      * @param fingerprint
      * @param id      Some unique id to identify this component. Needed to be a child component
      * @param backend Backend instance for updating

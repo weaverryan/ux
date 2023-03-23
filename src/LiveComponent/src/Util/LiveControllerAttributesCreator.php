@@ -77,7 +77,10 @@ class LiveControllerAttributesCreator
                 $mountedAttributes = $mountedAttributes->defaults(['data-live-id' => $id]);
             }
 
-            $fingerprint = $this->fingerprintCalculator->calculateFingerprint($mounted->getInputProps());
+            $fingerprint = $this->fingerprintCalculator->calculateFingerprint(
+                $mounted->getInputProps(),
+                $this->metadataFactory->getMetadata($mounted->getName())
+            );
             $attributesCollection->setFingerprint($fingerprint);
         }
 

@@ -35,7 +35,8 @@ class ChildComponentPartialRenderer implements ServiceSubscriberInterface
 
     public function renderChildComponent(string $deterministicId, string $currentPropsFingerprint, string $childTag, string $componentName, array $inputProps): string
     {
-        $newPropsFingerprint = $this->fingerprintCalculator->calculateFingerprint($inputProps);
+        $liveMetadata = $this->getLiveComponentMetadataFactory()->getMetadata($componentName);
+        $newPropsFingerprint = $this->fingerprintCalculator->calculateFingerprint($inputProps, $liveMetadata);
 
         if ($currentPropsFingerprint === $newPropsFingerprint) {
             // the props passed to create this child have *not* changed
@@ -62,14 +63,13 @@ class ChildComponentPartialRenderer implements ServiceSubscriberInterface
             $deterministicId
         );
 
-        $liveMetadata = $this->getLiveComponentMetadataFactory()->getMetadata($componentName);
         $props = $attributesCollection->getProps();
 
-        // only send back the props that are marked as "read-only"
-        $readonlyDehydratedProps = array_intersect_key(
-            $props,
-            array_flip(array_merge($liveMetadata->getReadonlyPropPaths(), LiveComponentHydrator::getInternalPropNames()))
-        );
+        // only send back the props that are allowed to be updated from the parent
+        $readonlyDehydratedProps = $liveMetadata->getOnlyPropsThatAcceptUpdatesFromParent($props);
+        // add back @checksum & @attributes
+        $readonlyDehydratedProps = array_merge($readonlyDehydratedProps, array_intersect_key($props, array_flip(LiveComponentHydrator::getInternalPropNames())));
+
         $attributesCollection->setProps($readonlyDehydratedProps);
         $attributes = $attributesCollection->toEscapedArray();
         // optional, but these just aren't needed by the frontend at this point

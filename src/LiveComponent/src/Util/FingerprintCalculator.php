@@ -15,6 +15,7 @@ namespace Symfony\UX\LiveComponent\Util;
 
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\UX\LiveComponent\LiveComponentHydrator;
+use Symfony\UX\LiveComponent\Metadata\LiveComponentMetadata;
 
 /**
  * @author Ryan Weaver <ryan@symfonycasts.com>
@@ -31,9 +32,15 @@ class FingerprintCalculator
     ) {
     }
 
-    public function calculateFingerprint(array $data): string
+    public function calculateFingerprint(array $data, LiveComponentMetadata $liveMetadata): string
     {
-        $normalizedData = $this->objectNormalizer->normalize($data, context: [LiveComponentHydrator::LIVE_CONTEXT => true]);
+        $fingerprintProps = $liveMetadata->getOnlyPropsThatAcceptUpdatesFromParent($data);
+
+        if (0 === count($fingerprintProps)) {
+            return '';
+        }
+
+        $normalizedData = $this->objectNormalizer->normalize($fingerprintProps, context: [LiveComponentHydrator::LIVE_CONTEXT => true]);
 
         return base64_encode(hash_hmac('sha256', serialize($normalizedData), $this->secret, true));
     }

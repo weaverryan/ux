@@ -39,10 +39,10 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         url: String,
         props: Object,
         csrf: String,
-        listeners: { type: Array, default: {} },
+        listeners: { type: Array, default: [] },
         debounce: { type: Number, default: 150 },
         id: String,
-        fingerprint: String,
+        fingerprint: { type: String, default: '' },
     };
 
     declare readonly nameValue: string;
@@ -52,7 +52,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     declare readonly listenersValue: Array<{ event: string; action: string }>;
     declare readonly hasDebounceValue: boolean;
     declare readonly debounceValue: number;
-    declare readonly fingerprintValue: string|undefined;
+    declare readonly fingerprintValue: string;
 
     /** The component, wrapped in the convenience Proxy */
     private proxiedComponent: Component;
@@ -83,7 +83,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
             this.propsValue,
             this.listenersValue,
             LiveControllerDefault.findComponents,
-            this.fingerprintValue || null,
+            this.fingerprintValue,
             id,
             new Backend(this.urlValue, this.csrfValue),
             new StandardElementDriver()
@@ -209,6 +209,47 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
 
     $render() {
         return this.component.render();
+    }
+
+    emit(event: Event) {
+        this.getEmitDirectives(event).forEach(( { name, data }) => {
+            this.component.emit(name, data);
+        });
+    }
+
+    emitUp(event: Event) {
+        this.getEmitDirectives(event).forEach(( { name, data }) => {
+            this.component.emitUp(name, data);
+        });
+    }
+
+    emitSelf(event: Event) {
+        this.getEmitDirectives(event).forEach(( { name, data }) => {
+            this.component.emitSelf(name, data);
+        });
+    }
+
+    private getEmitDirectives(event: Event): Array<{ name: string; data: any }>
+    {
+        const element = event.target as HTMLElement;
+        if (!element.dataset.event) {
+            throw new Error(`No data-event attribute found on element: ${getElementAsTagText(element)}`);
+        }
+
+        const eventInfo = element.dataset.event;
+
+        // data-event="component(product_list)|event_name(data)"
+        const directives = parseDirectives(eventInfo);
+        const emits: Array<{ name: string; data: any }> = [];
+        // TODO: handle "component" modifier
+        directives.forEach((directive) => {
+            emits.push({
+                name: directive.action,
+                data: directive.named
+            });
+        });
+
+        return emits;
     }
 
     /**
@@ -375,7 +416,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         const components: Component[] = [];
         LiveControllerDefault.componentMap.forEach((componentName: string, component: Component) => {
             if (onlyParents &&
-                (currentComponent === component || !currentComponent.element.contains(component.element))
+                (currentComponent === component || !component.element.contains(currentComponent.element))
             ) {
                 return;
             }

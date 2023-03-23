@@ -111,11 +111,10 @@ export default class {
      * Reinitialize *only* the provided props, but leave other untouched.
      *
      * This is used when a parent component is rendering, and it includes
-     * a fresh set of the "readonly" props for a child. This allows any writable
-     * props to remain (as these may have already been changed by the user).
+     * a fresh set of props that should be updated on the child component.
      *
-     * The server manages returning only the readonly props, so we don't need to
-     * worry about that.
+     * The server manages returning only the props that should be updated onto
+     * the child, so we don't need to worry about that.
      *
      * Returns true if any of the props changed.
      */
