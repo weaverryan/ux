@@ -34,7 +34,6 @@ final class DoctrineObjectNormalizer implements NormalizerInterface, Denormalize
      */
     public function __construct(
         private iterable $managerRegistries,
-        private ContainerInterface $container,
     ) {
     }
 
@@ -63,7 +62,11 @@ final class DoctrineObjectNormalizer implements NormalizerInterface, Denormalize
 
     public function supportsNormalization(mixed $data, string $format = null, array $context = []): bool
     {
-        if (true !== ($context[LiveComponentHydrator::LIVE_CONTEXT] ?? null) || !\is_object($data)) {
+        if (true !== ($context[LiveComponentHydrator::LIVE_CONTEXT] ?? null)) {
+            return false;
+        }
+
+        if (!\is_object($data)) {
             return false;
         }
 
@@ -85,6 +88,15 @@ final class DoctrineObjectNormalizer implements NormalizerInterface, Denormalize
 
     public function denormalize(mixed $data, string $type, string $format = null, array $context = []): ?object
     {
+        // works around a "bug" in the PropertyInfo component where
+        // ORM\ManyToOne(nullable=false) tells the serializer that the property
+        // does NOT accept null (even if the property IS nullable). Because
+        // of this, if `null` is sent for a relationship, the serializer
+        // will try to instantiate a new object.
+        if (null === $data) {
+            return null;
+        }
+
         // $data is the single identifier or array of identifiers
         if (\is_scalar($data) || (\is_array($data) && isset($data[0]))) {
             return $this->objectManagerFor($type)->find($type, $data);
@@ -95,10 +107,16 @@ final class DoctrineObjectNormalizer implements NormalizerInterface, Denormalize
 
     public function supportsDenormalization(mixed $data, string $type, string $format = null, array $context = [])
     {
-        if (
-            (\is_scalar($data) || (\is_array($data) && isset($data[0])))
-            && null !== $this->objectManagerFor($type)
-        ) {
+        if (true !== ($context[LiveComponentHydrator::LIVE_CONTEXT] ?? null)) {
+            return false;
+        }
+
+        // we support scalars, a single array PK or null
+        if (!$this->isDataSupportedForDenormalization($data)) {
+            return false;
+        }
+
+        if (null !== $this->objectManagerFor($type)) {
             return true;
         }
 
@@ -156,8 +174,20 @@ final class DoctrineObjectNormalizer implements NormalizerInterface, Denormalize
         ;
     }
 
-    private function getDenormalizer(): DenormalizerInterface
+    private function isDataSupportedForDenormalization(mixed $data): bool
     {
-        return $this->container->get(DenormalizerInterface::class);
+        if (is_scalar($data)) {
+            return true;
+        }
+
+        if (is_array($data) && isset($data[0])) {
+            return true;
+        }
+
+        if (null === $data) {
+            return true;
+        }
+
+        return false;
     }
 }

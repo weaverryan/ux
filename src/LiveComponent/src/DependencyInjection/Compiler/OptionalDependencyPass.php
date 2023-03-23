@@ -23,7 +23,6 @@ final class OptionalDependencyPass implements CompilerPassInterface
         if ($container->hasDefinition('doctrine')) {
             $container->register('ux.live_component.doctrine_object_normalizer', DoctrineObjectNormalizer::class)
                 ->setArguments([new IteratorArgument([new Reference('doctrine')])]) // todo add other object managers (mongo)
-                ->addTag('container.service_subscriber', ['key' => DenormalizerInterface::class, 'id' => 'serializer'])
                 ->addTag('serializer.normalizer', ['priority' => -100])
             ;
         }
