@@ -89,7 +89,9 @@ trait ValidatableComponentTrait
      */
     public function getError(string $propertyPath): ?ConstraintViolation
     {
-        return $this->getValidationErrors()->get($propertyPath);
+        $violations = $this->getValidationErrors()->getViolations($propertyPath);
+
+        return $violations[0] ?? null;
     }
 
     #[ExposeInTemplate('_errors')]

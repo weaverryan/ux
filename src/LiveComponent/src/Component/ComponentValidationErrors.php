@@ -18,7 +18,7 @@ class ComponentValidationErrors implements \Countable
 
     public function has(string $propertyPath): bool
     {
-        return isset($this->errors[$propertyPath]);
+        return null !== $this->get($propertyPath);
     }
 
     public function get(string $propertyPath): ?string
