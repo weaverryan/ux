@@ -99,7 +99,13 @@
         <button
             class="btn btn-primary"
             {{ areAnyLineItemsEditing ? 'disabled' : '' }}
-        >Save Invoice</button>
+        >
+            <span data-loading="action(saveInvoice)|show" class="fa fa-spin fa-spinner"></span>
+            {% if successfullySaved %}
+                <span class="fa fa-check-circle text-success"></span>
+            {% endif %}
+            Save Invoice
+        </button>
         {% if areAnyLineItemsEditing %}
             <small class="text-secondary">Save all line items before continuing.</small>
         {% endif %}

@@ -31,6 +31,14 @@ class InvoiceComponent extends AbstractController
     #[LiveProp]
     public array $lineItems = [];
 
+    /**
+     * A temporary flag that we just saved.
+     *
+     * This doesn't need to be a LiveProp because it's set in a LiveAction,
+     * rendered immediately, then we want it to be forgotten.
+     */
+    public bool $successfullySaved = false;
+
     public function __construct(private ProductRepository $productRepository)
     {
     }
@@ -77,7 +85,7 @@ class InvoiceComponent extends AbstractController
     }
 
     #[LiveAction]
-    public function saveInvoice(EntityManagerInterface $entityManager): Response
+    public function saveInvoice(EntityManagerInterface $entityManager)
     {
         $this->validate();
 
@@ -105,20 +113,26 @@ class InvoiceComponent extends AbstractController
             $invoiceItem->setQuantity($lineItem['quantity']);
         }
 
+        $isNew = null === $this->invoice->getId();
         $entityManager->persist($this->invoice);
         $entityManager->flush();
 
+        if ($isNew) {
+            // it's new! Let's redirect to the edit page
+            $this->addFlash('live_demo_success', 'Invoice saved!');
+
+            return $this->redirectToRoute('app_live_components_invoice', [
+                'id' => $this->invoice->getId()
+            ]);
+        }
+
+        // it's not new! We should already be on the edit page, so let's
+        // just let the component stay rendered.
+        $this->successfullySaved = true;
+
         // Keep the lineItems in sync with the invoice: new InvoiceItems may
         //      not have been given the same key as the original lineItems
-        // Note: this is not actually needed here, since we redirect. It's
-        //      only needed if the component were to be re-rendered.
         $this->lineItems = $this->populateLineItems($this->invoice);
-
-        $this->addFlash('live_demo_success', 'Invoice saved!');
-
-        return $this->redirectToRoute('app_live_components_invoice', [
-            'id' => $this->invoice->getId()
-        ]);
     }
 
     public function getSubtotal(): float
