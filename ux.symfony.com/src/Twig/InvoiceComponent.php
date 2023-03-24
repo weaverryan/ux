@@ -16,6 +16,7 @@ use Symfony\UX\LiveComponent\Attribute\LiveListener;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 use Symfony\UX\LiveComponent\ValidatableComponentTrait;
+use Symfony\UX\TwigComponent\Attribute\ExposeInTemplate;
 
 #[AsLiveComponent('invoice')]
 class InvoiceComponent extends AbstractController
@@ -57,7 +58,13 @@ class InvoiceComponent extends AbstractController
         unset($this->lineItems[$key]);
     }
 
-    #[LiveListener('item_save')]
+    #[LiveListener('line_item:change_edit_mode')]
+    public function onLineItemEditModeChange(#[LiveArg] int $key, #[LiveArg] $isEditing): void
+    {
+        $this->lineItems[$key]['isEditing'] = $isEditing;
+    }
+
+    #[LiveListener('line_item:save')]
     public function saveLineItem(#[LiveArg] int $key, #[LiveArg] Product $product, #[LiveArg] int $quantity): void
     {
         if (!isset($this->lineItems[$key])) {
@@ -65,8 +72,6 @@ class InvoiceComponent extends AbstractController
             return;
         }
 
-        // TODO: MAYBE we do this
-        $this->lineItems[$key]['isEditing'] = false;
         $this->lineItems[$key]['productId'] = $product->getId();
         $this->lineItems[$key]['quantity'] = $quantity;
     }
@@ -138,6 +143,18 @@ class InvoiceComponent extends AbstractController
         $taxMultiplier = 1 + ($this->invoice->getTaxRate() / 100);
 
         return $this->getSubtotal() * $taxMultiplier;
+    }
+
+    #[ExposeInTemplate]
+    public function areAnyLineItemsEditing(): bool
+    {
+        foreach ($this->lineItems as $lineItem) {
+            if ($lineItem['isEditing']) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function populateLineItems(Invoice $invoice): array

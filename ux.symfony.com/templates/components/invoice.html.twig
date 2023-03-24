@@ -96,6 +96,12 @@
             </table>
         </div>
 
-        <button class="btn btn-primary">Save Invoice</button>
+        <button
+            class="btn btn-primary"
+            {{ areAnyLineItemsEditing ? 'disabled' : '' }}
+        >Save Invoice</button>
+        {% if areAnyLineItemsEditing %}
+            <small class="text-secondary">Save all line items before continuing.</small>
+        {% endif %}
     </form>
 </div>

@@ -49,25 +49,35 @@ class InvoiceItemComponent
     {
         $this->validate();
 
-        $responder->emitUp('item_save', [
+        $responder->emitUp('line_item:save', [
             'key' => $this->key,
             'product' => $this->product->getId(),
             'quantity' => $this->quantity,
         ]);
 
-        $this->isEditing = false;
+        $this->changeEditMode(false, $responder);
     }
 
     #[LiveAction]
-    public function edit(): void
+    public function edit(LiveResponder $responder): void
     {
-        // TODO: do we also (or only) emit an event to keep the parent component in sync?
-        $this->isEditing = true;
+        $this->changeEditMode(true, $responder);
     }
 
     #[ExposeInTemplate]
     public function getProducts(): array
     {
         return $this->productRepository->findAll();
+    }
+
+    private function changeEditMode(bool $isEditing, LiveResponder $responder): void
+    {
+        $this->isEditing = $isEditing;
+
+        // emit to InvoiceComponent so it can track which items are being edited
+        $responder->emitUp('line_item:change_edit_mode', [
+            'key' => $this->key,
+            'isEditing' => $this->isEditing,
+        ]);
     }
 }
