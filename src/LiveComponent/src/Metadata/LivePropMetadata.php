@@ -27,6 +27,7 @@ final class LivePropMetadata
         private LiveProp $liveProp,
         private ?string $typeName,
         private bool $isBuiltIn,
+        private bool $allowsNull,
     ) {
     }
 
@@ -43,6 +44,11 @@ final class LivePropMetadata
     public function isBuiltIn(): bool
     {
         return $this->isBuiltIn;
+    }
+
+    public function allowsNull(): bool
+    {
+        return $this->allowsNull;
     }
 
     public function calculateFieldName(object $component, string $fallback): string
@@ -82,5 +88,18 @@ final class LivePropMetadata
     public function acceptUpdatesFromParent(): bool
     {
         return $this->liveProp->acceptUpdatesFromParent();
+    }
+
+    public function useSerializerForHydration(): bool
+    {
+        return $this->liveProp->useSerializerForHydration();
+    }
+
+    /**
+     * @internal
+     */
+    public function serializationContext(): array
+    {
+        return $this->liveProp->serializationContext();
     }
 }

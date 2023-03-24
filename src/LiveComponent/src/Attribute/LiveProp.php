@@ -30,6 +30,10 @@ final class LiveProp
 
     private ?string $dehydrateWith;
 
+    private bool $useSerializerForHydration;
+
+    private array $serializationContext;
+
     /**
      * The "frontend" field name that should be used for this property.
      *
@@ -49,6 +53,9 @@ final class LiveProp
      *                             that are writable.
      * @param string|null $hydrateWith
      * @param string|null $dehydrateWith
+     * @param bool $useSerializerForHydration If true, the serializer will be used to
+     *                                        dehydrate then hydrate this property.
+     *                                        Incompatible with hydrateWith and dehydrateWith.
      * @param string|null $fieldName
      * @param bool $updateFromParent If true, while a parent component is re-rendering,
      *                               if the parent passes in this prop and it changed
@@ -60,14 +67,22 @@ final class LiveProp
         bool|array $writable = false,
         ?string $hydrateWith = null,
         ?string $dehydrateWith = null,
+        ?bool $useSerializerForHydration = false,
+        array $serializationContext = [],
         ?string $fieldName = null,
         bool $updateFromParent = false
     ) {
         $this->writable = $writable;
         $this->hydrateWith = $hydrateWith;
         $this->dehydrateWith = $dehydrateWith;
+        $this->useSerializerForHydration = $useSerializerForHydration;
+        $this->serializationContext = $serializationContext;
         $this->fieldName = $fieldName;
         $this->acceptUpdatesFromParent = $updateFromParent;
+
+        if ($this->useSerializerForHydration && ($this->hydrateWith || $this->dehydrateWith)) {
+            throw new \InvalidArgumentException('Cannot use useSerializerForHydration with hydrateWith or dehydrateWith.');
+        }
     }
 
     /**
@@ -110,6 +125,22 @@ final class LiveProp
     public function dehydrateMethod(): ?string
     {
         return $this->dehydrateWith ? trim($this->dehydrateWith, '()') : null;
+    }
+
+    /**
+     * @internal
+     */
+    public function useSerializerForHydration(): bool
+    {
+        return $this->useSerializerForHydration;
+    }
+
+    /**
+     * @internal
+     */
+    public function serializationContext(): array
+    {
+        return $this->serializationContext;
     }
 
     /**

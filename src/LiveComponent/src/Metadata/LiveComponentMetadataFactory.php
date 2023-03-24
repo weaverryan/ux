@@ -62,6 +62,7 @@ class LiveComponentMetadataFactory
                 $attribute->newInstance(),
                 $type ? $type->getName() : null,
                 $type ? $type->isBuiltin() : false,
+                $type ? $type->allowsNull() : true,
             );
         }
 

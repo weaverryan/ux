@@ -161,10 +161,10 @@ trait ValidatableComponentTrait
         return $this->componentValidator;
     }
 
-    private function getValidationErrors(array $errors = []): ComponentValidationErrors
+    private function getValidationErrors(): ComponentValidationErrors
     {
         if (null === $this->validationErrors) {
-            $this->validationErrors = new ComponentValidationErrors($errors);
+            $this->validationErrors = new ComponentValidationErrors();
         }
 
         return $this->validationErrors;

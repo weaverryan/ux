@@ -246,6 +246,15 @@ exceptions being properties that hold services (these don't need to be
 stateful because they will be autowired each time before the component
 is rendered).
 
+LiveProp Data Types
+~~~~~~~~~~~~~~~~~~~
+
+LiveProps must be a value that can be sent to JavaScript. Supported values
+are scalars (int, float, string, bool, null), arrays (of scalar values), enums,
+DateTime objects & Doctrine entity objects.
+
+See :ref:`hydration` for handling more complex data.
+
 Data Binding
 ------------
 
@@ -405,11 +414,17 @@ update correctly because JavaScript doesn't trigger the normal
 JavaScript library and set the model directly (or trigger a
 ``change`` event on the ``data-model`` field). See :ref:`working-in-javascript`.
 
+.. _hydration:
+
 LiveProp for Entities & More Complex Data
 -----------------------------------------
 
-You can also add the ``LiveProp`` attribute above more complex data,
-like entities or other objects. For example::
+``LiveProp`` data must be simple scalar values, with a few exception,
+like ``DateTime`` objects, enums & Doctrine entity objects. When ``LiveProp``s
+are sent to the frontend, they are "dehydrated". When Ajax requests are sent
+to the frontend, the dehydrated data is then "hydrated" back into the original.
+
+Doctrine entity objects are a special case for ``LiveProp``::
 
     use App\Entity\Post;
 
@@ -420,25 +435,17 @@ like entities or other objects. For example::
         public Post $post;
     }
 
-To send it to the frontend, the ``Post`` object is "dehydrated" to a scalar value.
-For persisted entities, the data is dehydrated to its ``id``. For unsaved entities -
-or any other objects - the value is passed through Symfony's serializer.
-
-When Ajax requests are sent to the frontend, the dehydrated data is then *hydrated*
-back into the original values.
-
-.. caution::
-
-    Dehydrated data is passed to the frontend so it's readable by the user.
-    If your object is dehydrated via the serializer, be sure no sensitive
-    data is exposed.
+If the ``Post`` object is persisted, its dehydrated to the entity's ``id`` and then
+hydrated back by querying the database. If the object is unpersisted, it's dehydrated
+to an empty array, then hydrated back by creating an *empty* object
+(i.e. ``new Post()``).
 
 Writable Object Properties or Array Keys
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-By default, the user can't change the *properties* of an object ``LiveProp``
-(or the keys of an array). But, you can allow this by setting
-``writable`` to property names that *should* be writable::
+By default, the user can't change the *properties* of an entity ``LiveProp``
+You can allow this by setting ``writable`` to property names that *should* be writable.
+This also works as a way to make only *some* keys of an array writable::
 
     use App\Entity\Post;
 
@@ -569,18 +576,33 @@ Note that being able to change the "identity" of an object is something
 that works only for objects that are dehydrated to a scalar value (like
 persisted entities, which dehydrate to an ``id``).
 
-More Control Over Dehydration & Hydration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Hydration, DTO's & the Serializer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ``LiveProp`` attribute uses the normalizer to dehydrate values before
-sending them to the frontend. Then it uses the denormalizer to hydrate values
-when they are sent back to the backend.
+If you try to use a ``LiveProp`` for some unsupported type (e.g.a DTO object),
+it will fail. A best practice is to use simple data.
 
-Using the serializer isn't meant to work out-of-the-box in every possible situation
-and it's always simpler to use scalar `LiveProp` values instead of complex objects.
-If you're having (de)hydrating a complex object, you can take full control by
-setting the ``hydrateWith`` and ``dehydrateWith`` options on ``LiveProp``. For
-example::
+But there are two options to make this work:
+
+1) Hydrating with the Serializer
+................................
+
+To hydrate/dehydrate through Symfony's serializer, use the ``useSerializerForHydration``
+option::
+
+    class ComponentWithAddressDto
+    {
+        #[LiveProp(useSerializerForHydration: true)]
+        public AddressDto $addressDto;
+    }
+
+You can also set a ``serializationContext`` option on the ``LiveProp``.
+
+2) Hydrating with Methods: hydrateWith & dehydrateWith
+......................................................
+
+You can take full control of the hydration process by setting the ``hydrateWith``
+and ``dehydrateWith`` options on ``LiveProp``::
 
     class ComponentWithAddressDto
     {
@@ -596,9 +618,9 @@ example::
             ];
         }
 
-        public function hydrateMyDto($data): MyDto
+        public function hydrateAddress($data): AddressDto
         {
-            return new MyDto($data['street'], $data['city'], $data['state']);
+            return new AddressDto($data['street'], $data['city'], $data['state']);
         }
     }
 
@@ -746,9 +768,7 @@ Or, to *hide* an element while the component is loading:
 .. code-block:: twig
 
     <!-- hide when the component is loading -->
-    <span
-        data-loading="hide"
-    >Saved!</span>
+    <span data-loading="hide">Saved!</span>
 
 Adding and Removing Classes or Attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
