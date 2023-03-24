@@ -231,7 +231,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
 
     private getEmitDirectives(event: Event): Array<{ name: string; data: any }>
     {
-        const element = event.target as HTMLElement;
+        const element = event.currentTarget as HTMLElement;
         if (!element.dataset.event) {
             throw new Error(`No data-event attribute found on element: ${getElementAsTagText(element)}`);
         }

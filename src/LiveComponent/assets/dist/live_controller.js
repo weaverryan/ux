@@ -2726,7 +2726,7 @@ class LiveControllerDefault extends Controller {
         });
     }
     getEmitDirectives(event) {
-        const element = event.target;
+        const element = event.currentTarget;
         if (!element.dataset.event) {
             throw new Error(`No data-event attribute found on element: ${getElementAsTagText(element)}`);
         }
