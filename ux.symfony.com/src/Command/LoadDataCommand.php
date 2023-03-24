@@ -4,6 +4,8 @@ namespace App\Command;
 
 use App\Entity\Chat;
 use App\Entity\Food;
+use App\Entity\Invoice;
+use App\Entity\InvoiceItem;
 use App\Entity\Product;
 use App\Entity\TodoItem;
 use App\Entity\TodoList;
@@ -29,6 +31,8 @@ class LoadDataCommand extends Command
         $this->clearEntity(Chat::class, $io);
         $this->clearEntity(TodoItem::class, $io);
         $this->clearEntity(TodoList::class, $io);
+        $this->clearEntity(InvoiceItem::class, $io);
+        $this->clearEntity(Invoice::class, $io);
         $this->growFood($io);
         $this->manufactureProducts($io);
 

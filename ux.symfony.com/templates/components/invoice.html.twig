@@ -37,16 +37,18 @@
                     <thead>
                         <tr>
                             <th>Product</th>
-                            <th>Quantity</th>
+                            <th style="width: 100px;">Price</th>
+                            <th style="width: 100px;">Quantity</th>
+                            <th style="width: 100px;">&nbsp;</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for index, item in invoice.invoiceItems %}
+                        {% for key, line in lineItems %}
                             {{ component('invoice_item', {
-                                product: item.product,
-                                quantity: item.quantity,
-                                index: index,
-                                isEditing: item == newItem
+                                key: key,
+                                productId: line.productId,
+                                quantity: line.quantity,
+                                isEditing: line.isEditing,
                             }) }}
                         {% endfor %}
                     </tbody>
@@ -54,7 +56,7 @@
 
                 <button
                     data-action="live#action"
-                    data-action-name="addItem"
+                    data-action-name="addLineItem"
                     class="btn btn-sm btn-secondary"
                     type="button"
                 ><span class="fa fa-plus-circle"></span> Add Item</button>

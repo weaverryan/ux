@@ -29,7 +29,7 @@ class Invoice
     #[Assert\Range(min: 0, max: 100)]
     private int $taxRate = 0;
 
-    #[ORM\OneToMany(mappedBy: 'invoice', targetEntity: InvoiceItem::class, cascade: ['persist'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'invoice', targetEntity: InvoiceItem::class, orphanRemoval: true)]
     private Collection $invoiceItems;
 
     public function __construct()

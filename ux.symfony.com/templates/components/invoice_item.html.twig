@@ -20,7 +20,13 @@
             {% endif %}
 
         {% else %}
-            {{ product? product.name }}
+            {{ product.name }}
+        {% endif %}
+    </td>
+
+    <td>
+        {% if not isEditing %}
+            {{ product.priceInCents|format_currency('USD') }}
         {% endif %}
     </td>
 
@@ -41,7 +47,7 @@
             {{ quantity }}
         {% endif %}
     </td>
-    <td style="width: 150px;">
+    <td class="text-end">
         {% if isEditing %}
             <button
                 data-action="live#action"
@@ -60,9 +66,9 @@
 
         <button
             data-action="live#emitUp"
-            data-event="item_remove(index={{ index }})"
-            class="btn btn-danger btn-sm ml-2"
+            data-event="removeLineItem(key={{ key }})"
+            class="btn btn-link text-danger btn-sm ml-2"
             type="button"
-        >X</button>
+        ><span class="fa fa-times"></span></button>
     </td>
 </tr>

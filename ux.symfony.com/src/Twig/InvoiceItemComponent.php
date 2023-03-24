@@ -19,6 +19,9 @@ class InvoiceItemComponent
     use DefaultActionTrait;
     use ValidatableComponentTrait;
 
+    #[LiveProp]
+    public int $key;
+
     #[LiveProp(writable: true)]
     #[Assert\NotNull]
     public ?Product $product = null;
@@ -27,14 +30,18 @@ class InvoiceItemComponent
     #[Assert\Positive]
     public int $quantity = 1;
 
-    #[LiveProp]
-    public int $index;
-
-    #[LiveProp(updateFromParent: false)]
+    #[LiveProp()]
     public bool $isEditing = false;
 
     public function __construct(private ProductRepository $productRepository)
     {
+    }
+
+    public function mount(?int $productId): void
+    {
+        if ($productId) {
+            $this->product = $this->productRepository->find($productId);
+        }
     }
 
     #[LiveAction]
@@ -43,7 +50,7 @@ class InvoiceItemComponent
         $this->validate();
 
         $responder->emitUp('item_save', [
-            'index' => $this->index,
+            'key' => $this->key,
             'product' => $this->product->getId(),
             'quantity' => $this->quantity,
         ]);
@@ -54,6 +61,7 @@ class InvoiceItemComponent
     #[LiveAction]
     public function edit(): void
     {
+        // TODO: do we also (or only) emit an event to keep the parent component in sync?
         $this->isEditing = true;
     }
 
