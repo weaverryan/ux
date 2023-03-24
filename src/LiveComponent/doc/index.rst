@@ -576,18 +576,6 @@ The ``LiveProp`` attribute uses the normalizer to dehydrate values before
 sending them to the frontend. Then it uses the denormalizer to hydrate values
 when they are sent back to the backend.
 
-If needed, you can control the normalization or denormalization context using
-the ``Context`` attribute from Symfony's serializer::
-
-    #[LiveProp]
-    #[Context(groups: ['my_group'])]
-    public Post $post;
-
-.. note::
-
-    If your property has writable paths, those will be normalized/denormalized
-    using the same `Context` set on the property itself.
-
 Using the serializer isn't meant to work out-of-the-box in every possible situation
 and it's always simpler to use scalar `LiveProp` values instead of complex objects.
 If you're having (de)hydrating a complex object, you can take full control by
