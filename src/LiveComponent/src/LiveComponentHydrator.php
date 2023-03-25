@@ -74,6 +74,7 @@ final class LiveComponentHydrator
 
             $takenFrontendPropertyNames[$frontendName] = $propertyName;
 
+            // 1) Dehydrate main value
             try {
                 $rawPropertyValue = $this->propertyAccessor->getValue($component, $propertyName);
             } catch (UninitializedPropertyException $exception) {
@@ -84,6 +85,7 @@ final class LiveComponentHydrator
 
             $dehydratedProps->addPropValue($frontendName, $dehydratedValue);
 
+            // 2) Fetch writable paths
             foreach ($propMetadata->writablePaths() as $path) {
                 try {
                     $pathValue = $this->propertyAccessor->getValue(
@@ -331,7 +333,13 @@ final class LiveComponentHydrator
         }
 
         if (is_array($value)) {
-            // TODO: need a sanity check that this is an array of scalars
+            if (!$this->isValueValidDehydratedValue($value)) {
+                $badKeys = $this->getNonScalarKeys($value, $propMetadata->getName());
+                $badKeysText = implode(', ', array_map(fn ($key) => sprintf('%s: %s', $key, $badKeys[$key]), array_keys($badKeys)));
+
+                throw new \LogicException(sprintf('The LiveProp "%s" on component "%s" is an array, but it contains one or more keys that are not scalars: %s', $propMetadata->getName(), \get_class($component), $badKeysText));
+            }
+
             return $value;
         }
 
@@ -444,6 +452,24 @@ final class LiveComponentHydrator
         }
 
         return true;
+    }
+
+
+    private function getNonScalarKeys(array $value, string $path = ''): array
+    {
+        $nonScalarKeys = [];
+        foreach ($value as $k => $v) {
+            if (is_array($v)) {
+                $nonScalarKeys = array_merge($nonScalarKeys, $this->getNonScalarKeys($v, sprintf('%s.%s', $path, $k)));
+                continue;
+            }
+
+            if (!$this->isValueValidDehydratedValue($v)) {
+                $nonScalarKeys[sprintf('%s.%s', $path, $k)] = get_debug_type($v);
+            }
+        }
+
+        return $nonScalarKeys;
     }
 
     private function combineAndValidateProps(array $props, array $updatedPropsFromParent): DehydratedProps
