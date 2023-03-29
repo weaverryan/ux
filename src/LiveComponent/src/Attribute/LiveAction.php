@@ -15,6 +15,6 @@ namespace Symfony\UX\LiveComponent\Attribute;
  * @experimental
  */
 #[\Attribute(\Attribute::TARGET_METHOD)]
-final class LiveAction
+class LiveAction
 {
 }

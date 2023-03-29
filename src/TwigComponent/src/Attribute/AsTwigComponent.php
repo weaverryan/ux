@@ -11,6 +11,8 @@
 
 namespace Symfony\UX\TwigComponent\Attribute;
 
+use ReflectionAttribute;
+
 /**
  * @author Kevin Bond <kevinbond@gmail.com>
  */
@@ -78,7 +80,7 @@ class AsTwigComponent
     protected static function attributeMethodsFor(string $attribute, object $component): \Traversable
     {
         foreach ((new \ReflectionClass($component))->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if ($method->getAttributes($attribute)[0] ?? null) {
+            if ($method->getAttributes($attribute, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null) {
                 yield $method;
             }
         }

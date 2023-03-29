@@ -35,17 +35,21 @@ export interface LiveController {
 }
 export default class LiveControllerDefault extends Controller<HTMLElement> implements LiveController {
     static values = {
+        name: String,
         url: String,
         props: Object,
         csrf: String,
+        listeners: { type: Array, default: [] },
         debounce: { type: Number, default: 150 },
         id: String,
         fingerprint: String,
     };
 
+    declare readonly nameValue: string;
     declare readonly urlValue: string;
     declare readonly propsValue: any;
     declare readonly csrfValue: string;
+    declare readonly listenersValue: Array<{ event: string; action: string }>;
     declare readonly hasDebounceValue: boolean;
     declare readonly debounceValue: number;
     declare readonly fingerprintValue: string;
@@ -62,6 +66,13 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         { event: 'live:connect', callback: (event) => this.handleConnectedControllerEvent(event) },
     ];
 
+    /**
+     * A map of all the components that have been created.
+     *
+     * The value is the component's name.
+     */
+    private static componentMap: Map<Component, string> = new Map();
+
     initialize() {
         this.handleDisconnectedChildControllerEvent = this.handleDisconnectedChildControllerEvent.bind(this);
 
@@ -70,6 +81,8 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         this.component = new Component(
             this.element,
             this.propsValue,
+            this.listenersValue,
+            LiveControllerDefault.findComponents,
             this.fingerprintValue,
             id,
             new Backend(this.urlValue, this.csrfValue),
@@ -97,6 +110,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     }
 
     connect() {
+        LiveControllerDefault.componentMap.set(this.component, this.nameValue);
         this.component.connect();
 
         this.elementEventListeners.forEach(({ event, callback }) => {
@@ -108,6 +122,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     }
 
     disconnect() {
+        LiveControllerDefault.componentMap.delete(this.component);
         this.component.disconnect();
 
         this.elementEventListeners.forEach(({ event, callback }) => {
@@ -194,6 +209,47 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
 
     $render() {
         return this.component.render();
+    }
+
+    emit(event: Event) {
+        this.getEmitDirectives(event).forEach(( { name, data }) => {
+            this.component.emit(name, data);
+        });
+    }
+
+    emitUp(event: Event) {
+        this.getEmitDirectives(event).forEach(( { name, data }) => {
+            this.component.emitUp(name, data);
+        });
+    }
+
+    emitSelf(event: Event) {
+        this.getEmitDirectives(event).forEach(( { name, data }) => {
+            this.component.emitSelf(name, data);
+        });
+    }
+
+    private getEmitDirectives(event: Event): Array<{ name: string; data: any }>
+    {
+        const element = event.currentTarget as HTMLElement;
+        if (!element.dataset.event) {
+            throw new Error(`No data-event attribute found on element: ${getElementAsTagText(element)}`);
+        }
+
+        const eventInfo = element.dataset.event;
+
+        // data-event="component(product_list)|event_name(data)"
+        const directives = parseDirectives(eventInfo);
+        const emits: Array<{ name: string; data: any }> = [];
+        // TODO: handle "component" modifier
+        directives.forEach((directive) => {
+            emits.push({
+                name: directive.action,
+                data: directive.named
+            });
+        });
+
+        return emits;
     }
 
     /**
@@ -350,5 +406,27 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         detail.component = this.proxiedComponent;
 
         this.dispatch(name, { detail, prefix: 'live', cancelable, bubbles: canBubble });
+    }
+
+    /**
+     * Returns a filtered list of all the currently-registered components
+     */
+    static findComponents(currentComponent: Component, onlyParents: boolean, onlyMatchName: string|null): Component[] {
+        const components: Component[] = [];
+        LiveControllerDefault.componentMap.forEach((componentName: string, component: Component) => {
+            if (onlyParents &&
+                (currentComponent === component || !component.element.contains(currentComponent.element))
+            ) {
+                return;
+            }
+
+            if (onlyMatchName && componentName !== onlyMatchName) {
+                return;
+            }
+
+            components.push(component);
+        });
+
+        return components;
     }
 }
