@@ -40,10 +40,11 @@ export default class {
     /**
      * Returns a filtered list of all the currently-registered components
      */
-    findComponents(currentComponent: Component, onlyParents: boolean, onlyMatchName: string|null): Component[] {
+    findComponents(currentComponent: Component, onlyParents: boolean, onlyMatchName: string | null): Component[] {
         const components: Component[] = [];
         this.componentMapByComponent.forEach((componentName: string, component: Component) => {
-            if (onlyParents &&
+            if (
+                onlyParents &&
                 (currentComponent === component || !component.element.contains(currentComponent.element))
             ) {
                 return;

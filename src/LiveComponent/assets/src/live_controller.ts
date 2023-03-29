@@ -20,7 +20,8 @@ import getModelBinding from './Directive/get_model_binding';
 import ComponentRegistry from './ComponentRegistry';
 
 export { Component };
-export const getComponent = (element: HTMLElement): Promise<Component> => LiveControllerDefault.componentRegistry.getComponent(element);
+export const getComponent = (element: HTMLElement): Promise<Component> =>
+    LiveControllerDefault.componentRegistry.getComponent(element);
 
 export interface LiveEvent extends CustomEvent {
     detail: {
@@ -78,7 +79,8 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
             this.nameValue,
             this.propsValue,
             this.listenersValue,
-            (currentComponent: Component, onlyParents: boolean, onlyMatchName: string|null) => LiveControllerDefault.componentRegistry.findComponents(currentComponent, onlyParents, onlyMatchName),
+            (currentComponent: Component, onlyParents: boolean, onlyMatchName: string | null) =>
+                LiveControllerDefault.componentRegistry.findComponents(currentComponent, onlyParents, onlyMatchName),
             this.fingerprintValue,
             id,
             new Backend(this.urlValue, this.csrfValue),
@@ -112,7 +114,6 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         this.elementEventListeners.forEach(({ event, callback }) => {
             this.component.element.addEventListener(event, callback);
         });
-
 
         this.dispatchEvent('connect');
     }
@@ -207,25 +208,24 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     }
 
     emit(event: Event) {
-        this.getEmitDirectives(event).forEach(( { name, data, nameMatch }) => {
+        this.getEmitDirectives(event).forEach(({ name, data, nameMatch }) => {
             this.component.emit(name, data, nameMatch);
         });
     }
 
     emitUp(event: Event) {
-        this.getEmitDirectives(event).forEach(( { name, data, nameMatch }) => {
+        this.getEmitDirectives(event).forEach(({ name, data, nameMatch }) => {
             this.component.emitUp(name, data, nameMatch);
         });
     }
 
     emitSelf(event: Event) {
-        this.getEmitDirectives(event).forEach(( { name, data }) => {
+        this.getEmitDirectives(event).forEach(({ name, data }) => {
             this.component.emitSelf(name, data);
         });
     }
 
-    private getEmitDirectives(event: Event): Array<{ name: string; data: any, nameMatch: string|null }>
-    {
+    private getEmitDirectives(event: Event): Array<{ name: string; data: any; nameMatch: string | null }> {
         const element = event.currentTarget as HTMLElement;
         if (!element.dataset.event) {
             throw new Error(`No data-event attribute found on element: ${getElementAsTagText(element)}`);
@@ -235,7 +235,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
 
         // data-event="component(product_list)|some_event"
         const directives = parseDirectives(eventInfo);
-        const emits: Array<{ name: string; data: any, nameMatch: string|null }> = [];
+        const emits: Array<{ name: string; data: any; nameMatch: string | null }> = [];
         directives.forEach((directive) => {
             let nameMatch = null;
             directive.modifiers.forEach((modifier) => {
