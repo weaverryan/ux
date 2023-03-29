@@ -19,7 +19,7 @@ namespace Symfony\UX\LiveComponent;
 final class LiveResponder
 {
     /**
-     * Key is the event name, value is an array with keys: event, data, target
+     * Key is the event name, value is an array with keys: event, data, target.
      *
      * @var array<string, array<string, mixed>>
      */
