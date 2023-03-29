@@ -101,11 +101,17 @@
             {{ areAnyLineItemsEditing ? 'disabled' : '' }}
         >
             <span data-loading="action(saveInvoice)|show" class="fa fa-spin fa-spinner"></span>
-            {% if successfullySaved %}
+            {% if savedSuccessfully %}
                 <span class="fa fa-check-circle text-success"></span>
+            {% endif %}
+            {% if saveFailed %}
+                <span class="fa fa-exclamation-circle"></span>
             {% endif %}
             Save Invoice
         </button>
+        {% if saveFailed %}
+            <small class="text-secondary">Check above for errors</small>
+        {%  endif %}
         {% if areAnyLineItemsEditing %}
             <small class="text-secondary">Save all line items before continuing.</small>
         {% endif %}

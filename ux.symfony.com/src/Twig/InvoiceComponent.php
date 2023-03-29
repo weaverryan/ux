@@ -7,7 +7,6 @@ use App\Entity\Product;
 use App\Repository\ProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Validator\Constraints\Valid;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
@@ -37,7 +36,8 @@ class InvoiceComponent extends AbstractController
      * This doesn't need to be a LiveProp because it's set in a LiveAction,
      * rendered immediately, then we want it to be forgotten.
      */
-    public bool $successfullySaved = false;
+    public bool $savedSuccessfully = false;
+    public bool $saveFailed = false;
 
     public function __construct(private ProductRepository $productRepository)
     {
@@ -87,7 +87,9 @@ class InvoiceComponent extends AbstractController
     #[LiveAction]
     public function saveInvoice(EntityManagerInterface $entityManager)
     {
+        $this->saveFailed = true;
         $this->validate();
+        $this->saveFailed = false;
 
         // TODO: do we check for `isSaved` here... and throw an error?
 
@@ -128,7 +130,7 @@ class InvoiceComponent extends AbstractController
 
         // it's not new! We should already be on the edit page, so let's
         // just let the component stay rendered.
-        $this->successfullySaved = true;
+        $this->savedSuccessfully = true;
 
         // Keep the lineItems in sync with the invoice: new InvoiceItems may
         //      not have been given the same key as the original lineItems
