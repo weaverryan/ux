@@ -2004,16 +2004,21 @@ There are three ways to emit an event:
         data-event="productAdded"
     >
 
-2. From your PHP component::
+2. From your PHP component via ``ComponentEmitsTrait``::
 
-    use Symfony\UX\LiveComponent\LiveResponder;
+    use Symfony\UX\LiveComponent\ComponentEmitsTrait;
 
-    #[LiveAction]
-    public function saveProduct(LiveResponder $responder)
+    class MyComponent
     {
-        // ...
+        use ComponentEmitsTrait
 
-        $responder->emit('productAdded');
+        #[LiveAction]
+        public function saveProduct()
+        {
+            // ...
+
+            $this->emit('productAdded');
+        }
     }
 
 3. :ref:`From JavaScript <working-in-javascript>`, using your component:
@@ -2048,11 +2053,13 @@ Passing Data to Listeners
 You can also pass extra (scalar) data to the listeners::
 
     #[LiveAction]
-    public function saveProduct(LiveResponder $responder)
+    public function saveProduct()
     {
         // ...
 
-        $responder->emit('productAdded');
+        $this->emit('productAdded', [
+            'product' => $product->getId(),
+        ]);
     }
 
 In your listeners, you can access this by adding a matching argument
@@ -2096,7 +2103,7 @@ If you want to emit an event to only the parent components, use the
 
 Or, in PHP::
 
-    $responder->emitUp('productAdded');
+    $this->emitUp('productAdded');
 
 Emitting only to Components with a Specific Name
 .................................................
@@ -2113,7 +2120,7 @@ use the ``name()`` modifier:
 
 Or, in PHP::
 
-    $responder->emit('productAdded', name: 'product_list');
+    $this->emit('productAdded', name: 'product_list');
 
 Emitting only to Yourself
 .........................
@@ -2129,7 +2136,7 @@ To emit an event to only yourself, use the ``emitSelf()`` method:
 
 Or, in PHP::
 
-    $responder->emitSelf('productAdded');
+    $this->emitSelf('productAdded');
 
 Nested Components
 -----------------
