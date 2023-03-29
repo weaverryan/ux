@@ -78,7 +78,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
             this.nameValue,
             this.propsValue,
             this.listenersValue,
-            LiveControllerDefault.componentRegistry.findComponents,
+            (currentComponent: Component, onlyParents: boolean, onlyMatchName: string|null) => LiveControllerDefault.componentRegistry.findComponents(currentComponent, onlyParents, onlyMatchName),
             this.fingerprintValue,
             id,
             new Backend(this.urlValue, this.csrfValue),
@@ -207,14 +207,14 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     }
 
     emit(event: Event) {
-        this.getEmitDirectives(event).forEach(( { name, data }) => {
-            this.component.emit(name, data);
+        this.getEmitDirectives(event).forEach(( { name, data, nameMatch }) => {
+            this.component.emit(name, data, nameMatch);
         });
     }
 
     emitUp(event: Event) {
-        this.getEmitDirectives(event).forEach(( { name, data }) => {
-            this.component.emitUp(name, data);
+        this.getEmitDirectives(event).forEach(( { name, data, nameMatch }) => {
+            this.component.emitUp(name, data, nameMatch);
         });
     }
 
@@ -224,7 +224,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         });
     }
 
-    private getEmitDirectives(event: Event): Array<{ name: string; data: any }>
+    private getEmitDirectives(event: Event): Array<{ name: string; data: any, nameMatch: string|null }>
     {
         const element = event.currentTarget as HTMLElement;
         if (!element.dataset.event) {
@@ -233,14 +233,25 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
 
         const eventInfo = element.dataset.event;
 
-        // data-event="component(product_list)|event_name(data)"
+        // data-event="component(product_list)|some_event"
         const directives = parseDirectives(eventInfo);
-        const emits: Array<{ name: string; data: any }> = [];
-        // TODO: handle "component" modifier
+        const emits: Array<{ name: string; data: any, nameMatch: string|null }> = [];
         directives.forEach((directive) => {
+            let nameMatch = null;
+            directive.modifiers.forEach((modifier) => {
+                switch (modifier.name) {
+                    case 'component':
+                        nameMatch = modifier.value;
+                        break;
+                    default:
+                        throw new Error(`Unknown modifier ${modifier.name} in event "${eventInfo}".`);
+                }
+            });
+
             emits.push({
                 name: directive.action,
-                data: directive.named
+                data: directive.named,
+                nameMatch,
             });
         });
 
