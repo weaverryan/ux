@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import Component from './Component';
+import ComponentRegistry from './ComponentRegistry';
 export { Component };
 export declare const getComponent: (element: HTMLElement) => Promise<Component>;
 export interface LiveEvent extends CustomEvent {
@@ -47,7 +48,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     component: Component;
     pendingActionTriggerModelElement: HTMLElement | null;
     private elementEventListeners;
-    private static componentMap;
+    static componentRegistry: ComponentRegistry;
     initialize(): void;
     connect(): void;
     disconnect(): void;

@@ -18,11 +18,13 @@ class LiveResponderTest extends TestCase
                 'event' => 'event_name1',
                 'data' => ['data_key' => 'data_value'],
                 'target' => null,
+                'componentName' => null,
             ],
             [
                 'event' => 'event_name2',
                 'data' => ['data_key' => 'data_value'],
                 'target' => null,
+                'componentName' => null,
             ],
         ], $responder->getEventsToEmit());
     }
@@ -38,11 +40,13 @@ class LiveResponderTest extends TestCase
                 'event' => 'event_name1',
                 'data' => ['data_key' => 'data_value'],
                 'target' => 'up',
+                'componentName' => null,
             ],
             [
                 'event' => 'event_name2',
                 'data' => ['data_key' => 'data_value'],
                 'target' => 'up',
+                'componentName' => null,
             ],
         ], $responder->getEventsToEmit());
     }
@@ -58,11 +62,13 @@ class LiveResponderTest extends TestCase
                 'event' => 'event_name1',
                 'data' => ['data_key' => 'data_value'],
                 'target' => 'self',
+                'componentName' => null,
             ],
             [
                 'event' => 'event_name2',
                 'data' => ['data_key' => 'data_value'],
                 'target' => 'self',
+                'componentName' => null,
             ],
         ], $responder->getEventsToEmit());
     }

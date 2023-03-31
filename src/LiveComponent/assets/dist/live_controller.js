@@ -417,7 +417,6 @@ class ValueStore {
         if (changed) {
             this.updatedPropsFromParent = props;
         }
-        console.log(props, changed);
         return changed;
     }
 }
@@ -1720,7 +1719,7 @@ class ChildComponentWrapper {
     }
 }
 class Component {
-    constructor(element, props, listeners, componentFinder, fingerprint, id, backend, elementDriver) {
+    constructor(element, name, props, listeners, componentFinder, fingerprint, id, backend, elementDriver) {
         this.defaultDebounce = 150;
         this.backendRequest = null;
         this.pendingActions = [];
@@ -1729,6 +1728,7 @@ class Component {
         this.children = new Map();
         this.parent = null;
         this.element = element;
+        this.name = name;
         this.componentFinder = componentFinder;
         this.backend = backend;
         this.elementDriver = elementDriver;
@@ -1736,10 +1736,11 @@ class Component {
         this.fingerprint = fingerprint;
         this.listeners = new Map();
         listeners.forEach((listener) => {
+            var _a;
             if (!this.listeners.has(listener.event)) {
                 this.listeners.set(listener.event, []);
             }
-            this.listeners.get(listener.event).push(listener.action);
+            (_a = this.listeners.get(listener.event)) === null || _a === void 0 ? void 0 : _a.push(listener.action);
         });
         this.valueStore = new ValueStore(props);
         this.unsyncedInputsTracker = new UnsyncedInputsTracker(this, elementDriver);
@@ -1870,7 +1871,6 @@ class Component {
         if (isChanged) {
             this.render();
         }
-        return;
     }
     onChildComponentModelUpdate(modelName, value, childComponent) {
         if (!childComponent.id) {
@@ -2136,7 +2136,9 @@ class RequestBuilder {
             this.willDataFitInUrl(JSON.stringify(props), JSON.stringify(updated), params, JSON.stringify(children), JSON.stringify(updatedPropsFromParent))) {
             params.set('props', JSON.stringify(props));
             params.set('updated', JSON.stringify(updated));
-            params.set('propsFromParent', JSON.stringify(updatedPropsFromParent));
+            if (Object.keys(updatedPropsFromParent).length > 0) {
+                params.set('propsFromParent', JSON.stringify(updatedPropsFromParent));
+            }
             if (hasFingerprints) {
                 params.set('children', JSON.stringify(children));
             }
@@ -2145,11 +2147,10 @@ class RequestBuilder {
         else {
             fetchOptions.method = 'POST';
             fetchOptions.headers['Content-Type'] = 'application/json';
-            const requestData = {
-                props,
-                updated,
-                propsFromParent: updatedPropsFromParent,
-            };
+            const requestData = { props, updated };
+            if (Object.keys(updatedPropsFromParent).length > 0) {
+                requestData.propsFromParent = updatedPropsFromParent;
+            }
             if (hasFingerprints) {
                 requestData.children = children;
             }
@@ -2589,20 +2590,23 @@ function getModelBinding (modelDirective) {
 
 class ComponentRegistry {
     constructor() {
-        this.components = new WeakMap();
+        this.componentMapByElement = new WeakMap();
+        this.componentMapByComponent = new Map();
     }
-    registerComponent(element, definition) {
-        this.components.set(element, definition);
+    registerComponent(element, component) {
+        this.componentMapByElement.set(element, component);
+        this.componentMapByComponent.set(component, component.name);
     }
-    unregisterComponent(element) {
-        this.components.delete(element);
+    unregisterComponent(component) {
+        this.componentMapByElement.delete(component.element);
+        this.componentMapByComponent.delete(component);
     }
     getComponent(element) {
         return new Promise((resolve, reject) => {
             let count = 0;
             const maxCount = 10;
             const interval = setInterval(() => {
-                const component = this.components.get(element);
+                const component = this.componentMapByElement.get(element);
                 if (component) {
                     resolve(component);
                 }
@@ -2614,10 +2618,23 @@ class ComponentRegistry {
             }, 5);
         });
     }
+    findComponents(currentComponent, onlyParents, onlyMatchName) {
+        const components = [];
+        this.componentMapByComponent.forEach((componentName, component) => {
+            if (onlyParents &&
+                (currentComponent === component || !component.element.contains(currentComponent.element))) {
+                return;
+            }
+            if (onlyMatchName && componentName !== onlyMatchName) {
+                return;
+            }
+            components.push(component);
+        });
+        return components;
+    }
 }
-var ComponentRegistry$1 = new ComponentRegistry();
 
-const getComponent = (element) => ComponentRegistry$1.getComponent(element);
+const getComponent = (element) => LiveControllerDefault.componentRegistry.getComponent(element);
 class LiveControllerDefault extends Controller {
     constructor() {
         super(...arguments);
@@ -2631,7 +2648,7 @@ class LiveControllerDefault extends Controller {
     initialize() {
         this.handleDisconnectedChildControllerEvent = this.handleDisconnectedChildControllerEvent.bind(this);
         const id = this.element.dataset.liveId || null;
-        this.component = new Component(this.element, this.propsValue, this.listenersValue, LiveControllerDefault.findComponents, this.fingerprintValue, id, new Backend(this.urlValue, this.csrfValue), new StandardElementDriver());
+        this.component = new Component(this.element, this.nameValue, this.propsValue, this.listenersValue, (currentComponent, onlyParents, onlyMatchName) => LiveControllerDefault.componentRegistry.findComponents(currentComponent, onlyParents, onlyMatchName), this.fingerprintValue, id, new Backend(this.urlValue, this.csrfValue), new StandardElementDriver());
         this.proxiedComponent = proxifyComponent(this.component);
         this.element.__component = this.proxiedComponent;
         if (this.hasDebounceValue) {
@@ -2649,21 +2666,19 @@ class LiveControllerDefault extends Controller {
         });
     }
     connect() {
-        LiveControllerDefault.componentMap.set(this.component, this.nameValue);
+        LiveControllerDefault.componentRegistry.registerComponent(this.element, this.component);
         this.component.connect();
         this.elementEventListeners.forEach(({ event, callback }) => {
             this.component.element.addEventListener(event, callback);
         });
-        ComponentRegistry$1.registerComponent(this.element, this.component);
         this.dispatchEvent('connect');
     }
     disconnect() {
-        LiveControllerDefault.componentMap.delete(this.component);
+        LiveControllerDefault.componentRegistry.unregisterComponent(this.component);
         this.component.disconnect();
         this.elementEventListeners.forEach(({ event, callback }) => {
             this.component.element.removeEventListener(event, callback);
         });
-        ComponentRegistry$1.unregisterComponent(this.element);
         this.dispatchEvent('disconnect');
     }
     update(event) {
@@ -2711,13 +2726,13 @@ class LiveControllerDefault extends Controller {
         return this.component.render();
     }
     emit(event) {
-        this.getEmitDirectives(event).forEach(({ name, data }) => {
-            this.component.emit(name, data);
+        this.getEmitDirectives(event).forEach(({ name, data, nameMatch }) => {
+            this.component.emit(name, data, nameMatch);
         });
     }
     emitUp(event) {
-        this.getEmitDirectives(event).forEach(({ name, data }) => {
-            this.component.emitUp(name, data);
+        this.getEmitDirectives(event).forEach(({ name, data, nameMatch }) => {
+            this.component.emitUp(name, data, nameMatch);
         });
     }
     emitSelf(event) {
@@ -2734,9 +2749,20 @@ class LiveControllerDefault extends Controller {
         const directives = parseDirectives(eventInfo);
         const emits = [];
         directives.forEach((directive) => {
+            let nameMatch = null;
+            directive.modifiers.forEach((modifier) => {
+                switch (modifier.name) {
+                    case 'name':
+                        nameMatch = modifier.value;
+                        break;
+                    default:
+                        throw new Error(`Unknown modifier ${modifier.name} in event "${eventInfo}".`);
+                }
+            });
             emits.push({
                 name: directive.action,
-                data: directive.named
+                data: directive.named,
+                nameMatch,
             });
         });
         return emits;
@@ -2844,6 +2870,6 @@ LiveControllerDefault.values = {
     id: String,
     fingerprint: { type: String, default: '' },
 };
-LiveControllerDefault.componentMap = new Map();
+LiveControllerDefault.componentRegistry = new ComponentRegistry();
 
 export { Component, LiveControllerDefault as default, getComponent };

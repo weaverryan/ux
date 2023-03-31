@@ -472,25 +472,6 @@ final class LiveComponentHydrator
         return $nonScalarKeys;
     }
 
-    private function combineAndValidateProps(array $props, array $updatedPropsFromParent): DehydratedProps
-    {
-        $dehydratedOriginalProps = DehydratedProps::createFromPropsArray($props);
-        $this->verifyChecksum($dehydratedOriginalProps->getProps());
-        $dehydratedOriginalProps->removePropValue(self::CHECKSUM_KEY);
-
-        // if a parent component is requesting some updates to the props, verify
-        // their checksum and apply them as "original props"
-        if (count($updatedPropsFromParent) > 0) {
-            $this->verifyChecksum($updatedPropsFromParent, 'Invalid checksum for the data sent from the parent component.');
-            unset($updatedPropsFromParent[self::CHECKSUM_KEY]);
-            foreach ($updatedPropsFromParent as $key => $value) {
-                $dehydratedOriginalProps->addPropValue($key, $value);
-            }
-        }
-
-        return $dehydratedOriginalProps;
-    }
-
     /**
      * Allows for specific keys to be written to a "fully-writable" array.
      *
@@ -514,5 +495,24 @@ final class LiveComponentHydrator
         }
 
         return $writablePaths;
+    }
+
+    private function combineAndValidateProps(array $props, array $updatedPropsFromParent): DehydratedProps
+    {
+        $dehydratedOriginalProps = DehydratedProps::createFromPropsArray($props);
+        $this->verifyChecksum($dehydratedOriginalProps->getProps());
+        $dehydratedOriginalProps->removePropValue(self::CHECKSUM_KEY);
+
+        // if a parent component is requesting some updates to the props, verify
+        // their checksum and apply them as "original props"
+        if (\count($updatedPropsFromParent) > 0) {
+            $this->verifyChecksum($updatedPropsFromParent, 'Invalid checksum for the data sent from the parent component.');
+            unset($updatedPropsFromParent[self::CHECKSUM_KEY]);
+            foreach ($updatedPropsFromParent as $key => $value) {
+                $dehydratedOriginalProps->addPropValue($key, $value);
+            }
+        }
+
+        return $dehydratedOriginalProps;
     }
 }

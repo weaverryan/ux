@@ -15,6 +15,9 @@ export interface ElementDriver {
      */
     getKeyFromElement(element: HTMLElement): string|null;
 
+    /**
+     * Given an element from a response, find all the events that should be emitted.
+     */
     getEventsToEmit(element: HTMLElement): Array<{event: string, data: any, target: string|null, componentName: string|null }>;
 }
 

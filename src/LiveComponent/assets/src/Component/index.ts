@@ -1,8 +1,4 @@
-import {
-    BackendAction,
-    BackendInterface,
-    ChildrenFingerprints,
-} from '../Backend/Backend';
+import { BackendAction, BackendInterface, ChildrenFingerprints } from '../Backend/Backend';
 import ValueStore from './ValueStore';
 import { normalizeModelName } from '../string_utils';
 import BackendRequest from '../Backend/BackendRequest';
@@ -32,6 +28,7 @@ class ChildComponentWrapper {
 
 export default class Component {
     readonly element: HTMLElement;
+    readonly name: string;
     // key is the string event name and value is an array of action names
     readonly listeners: Map<string, string[]>;
     private readonly componentFinder: ComponentFinder;
@@ -72,6 +69,7 @@ export default class Component {
 
     /**
      * @param element The root element
+     * @param name    The name of the component
      * @param props   Readonly component props
      * @param listeners Array of event -> action listeners
      * @param componentFinder
@@ -80,8 +78,9 @@ export default class Component {
      * @param backend Backend instance for updating
      * @param elementDriver Class to get "model" name from any element.
      */
-    constructor(element: HTMLElement, props: any, listeners: Array<{ event: string; action: string }>, componentFinder: ComponentFinder, fingerprint: string|null, id: string|null, backend: BackendInterface, elementDriver: ElementDriver) {
+    constructor(element: HTMLElement, name: string, props: any, listeners: Array<{ event: string; action: string }>, componentFinder: ComponentFinder, fingerprint: string|null, id: string|null, backend: BackendInterface, elementDriver: ElementDriver) {
         this.element = element;
+        this.name = name;
         this.componentFinder = componentFinder;
         this.backend = backend;
         this.elementDriver = elementDriver;
@@ -93,7 +92,7 @@ export default class Component {
             if (!this.listeners.has(listener.event)) {
                 this.listeners.set(listener.event, []);
             }
-            this.listeners.get(listener.event)!.push(listener.action);
+            this.listeners.get(listener.event)?.push(listener.action);
         });
 
         this.valueStore = new ValueStore(props);
@@ -584,7 +583,7 @@ export default class Component {
             fingerprints[child.id] = {
                 fingerprint: child.fingerprint as string,
                 tag: child.element.tagName.toLowerCase(),
-            }
+            };
         });
 
         return fingerprints;

@@ -18,6 +18,12 @@ use Symfony\UX\LiveComponent\LiveComponentHydrator;
 use Symfony\UX\LiveComponent\Metadata\LiveComponentMetadata;
 
 /**
+ * Calculates a fingerprint that is unique to the original input props passed
+ * into the component and that also set props that "accept updates from parent".
+ *
+ * This is used for child components, to determine when the parent has changed
+ * certain props that should trigger the child to re-render.
+ *
  * @author Ryan Weaver <ryan@symfonycasts.com>
  *
  * @experimental
@@ -32,11 +38,11 @@ class FingerprintCalculator
     ) {
     }
 
-    public function calculateFingerprint(array $data, LiveComponentMetadata $liveMetadata): string
+    public function calculateFingerprint(array $inputProps, LiveComponentMetadata $liveMetadata): string
     {
-        $fingerprintProps = $liveMetadata->getOnlyPropsThatAcceptUpdatesFromParent($data);
+        $fingerprintProps = $liveMetadata->getOnlyPropsThatAcceptUpdatesFromParent($inputProps);
 
-        if (0 === count($fingerprintProps)) {
+        if (0 === \count($fingerprintProps)) {
             return '';
         }
 

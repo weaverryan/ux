@@ -33,7 +33,9 @@ export default class {
         ) {
             params.set('props', JSON.stringify(props));
             params.set('updated', JSON.stringify(updated));
-            params.set('propsFromParent', JSON.stringify(updatedPropsFromParent));
+            if (Object.keys(updatedPropsFromParent).length > 0) {
+                params.set('propsFromParent', JSON.stringify(updatedPropsFromParent));
+            }
             if (hasFingerprints) {
                 params.set('children', JSON.stringify(children));
             }
@@ -41,11 +43,10 @@ export default class {
         } else {
             fetchOptions.method = 'POST';
             fetchOptions.headers['Content-Type'] = 'application/json';
-            const requestData: any = {
-                props,
-                updated,
-                propsFromParent: updatedPropsFromParent,
-            };
+            const requestData: any = { props, updated };
+            if (Object.keys(updatedPropsFromParent).length > 0) {
+                requestData.propsFromParent = updatedPropsFromParent;
+            }
             if (hasFingerprints) {
                 requestData.children = children;
             }

@@ -7,6 +7,7 @@ import { ModelBinding } from '../Directive/get_model_binding';
 export type ComponentFinder = (currentComponent: Component, onlyParents: boolean, onlyMatchName: string | null) => Component[];
 export default class Component {
     readonly element: HTMLElement;
+    readonly name: string;
     readonly listeners: Map<string, string[]>;
     private readonly componentFinder;
     private backend;
@@ -26,7 +27,7 @@ export default class Component {
     private children;
     private parent;
     private externalMutationTracker;
-    constructor(element: HTMLElement, props: any, listeners: Array<{
+    constructor(element: HTMLElement, name: string, props: any, listeners: Array<{
         event: string;
         action: string;
     }>, componentFinder: ComponentFinder, fingerprint: string | null, id: string | null, backend: BackendInterface, elementDriver: ElementDriver);

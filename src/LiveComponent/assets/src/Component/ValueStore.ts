@@ -120,7 +120,6 @@ export default class {
     }
 
     /**
-     *
      * This is used when a parent component is rendering, and it includes
      * a fresh set of props that should be updated on the child component.
      *

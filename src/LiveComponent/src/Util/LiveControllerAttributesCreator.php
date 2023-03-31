@@ -89,7 +89,9 @@ class LiveControllerAttributesCreator
                 $mounted->getInputProps(),
                 $this->metadataFactory->getMetadata($mounted->getName())
             );
-            $attributesCollection->setFingerprint($fingerprint);
+            if ($fingerprint) {
+                $attributesCollection->setFingerprint($fingerprint);
+            }
         }
 
         $dehydratedProps = $this->dehydrateComponent(

@@ -2,7 +2,6 @@
 
 namespace Symfony\UX\LiveComponent\Tests\Unit\Util;
 
-use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\UX\LiveComponent\Util\LiveAttributesCollection;
 

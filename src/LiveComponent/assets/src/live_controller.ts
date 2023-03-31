@@ -20,7 +20,8 @@ import getModelBinding from './Directive/get_model_binding';
 import ComponentRegistry from './ComponentRegistry';
 
 export { Component };
-export const getComponent = (element: HTMLElement): Promise<Component> => ComponentRegistry.getComponent(element);
+export const getComponent = (element: HTMLElement): Promise<Component> =>
+    LiveControllerDefault.componentRegistry.getComponent(element);
 
 export interface LiveEvent extends CustomEvent {
     detail: {
@@ -66,12 +67,7 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
         { event: 'live:connect', callback: (event) => this.handleConnectedControllerEvent(event) },
     ];
 
-    /**
-     * A map of all the components that have been created.
-     *
-     * The value is the component's name.
-     */
-    private static componentMap: Map<Component, string> = new Map();
+    static componentRegistry = new ComponentRegistry();
 
     initialize() {
         this.handleDisconnectedChildControllerEvent = this.handleDisconnectedChildControllerEvent.bind(this);
@@ -80,9 +76,11 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
 
         this.component = new Component(
             this.element,
+            this.nameValue,
             this.propsValue,
             this.listenersValue,
-            LiveControllerDefault.findComponents,
+            (currentComponent: Component, onlyParents: boolean, onlyMatchName: string | null) =>
+                LiveControllerDefault.componentRegistry.findComponents(currentComponent, onlyParents, onlyMatchName),
             this.fingerprintValue,
             id,
             new Backend(this.urlValue, this.csrfValue),
@@ -110,26 +108,24 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     }
 
     connect() {
-        LiveControllerDefault.componentMap.set(this.component, this.nameValue);
+        LiveControllerDefault.componentRegistry.registerComponent(this.element, this.component);
         this.component.connect();
 
         this.elementEventListeners.forEach(({ event, callback }) => {
             this.component.element.addEventListener(event, callback);
         });
 
-        ComponentRegistry.registerComponent(this.element, this.component);
         this.dispatchEvent('connect');
     }
 
     disconnect() {
-        LiveControllerDefault.componentMap.delete(this.component);
+        LiveControllerDefault.componentRegistry.unregisterComponent(this.component);
         this.component.disconnect();
 
         this.elementEventListeners.forEach(({ event, callback }) => {
             this.component.element.removeEventListener(event, callback);
         });
 
-        ComponentRegistry.unregisterComponent(this.element);
         this.dispatchEvent('disconnect');
     }
 
@@ -212,25 +208,24 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     }
 
     emit(event: Event) {
-        this.getEmitDirectives(event).forEach(( { name, data }) => {
-            this.component.emit(name, data);
+        this.getEmitDirectives(event).forEach(({ name, data, nameMatch }) => {
+            this.component.emit(name, data, nameMatch);
         });
     }
 
     emitUp(event: Event) {
-        this.getEmitDirectives(event).forEach(( { name, data }) => {
-            this.component.emitUp(name, data);
+        this.getEmitDirectives(event).forEach(({ name, data, nameMatch }) => {
+            this.component.emitUp(name, data, nameMatch);
         });
     }
 
     emitSelf(event: Event) {
-        this.getEmitDirectives(event).forEach(( { name, data }) => {
+        this.getEmitDirectives(event).forEach(({ name, data }) => {
             this.component.emitSelf(name, data);
         });
     }
 
-    private getEmitDirectives(event: Event): Array<{ name: string; data: any }>
-    {
+    private getEmitDirectives(event: Event): Array<{ name: string; data: any; nameMatch: string | null }> {
         const element = event.currentTarget as HTMLElement;
         if (!element.dataset.event) {
             throw new Error(`No data-event attribute found on element: ${getElementAsTagText(element)}`);
@@ -238,14 +233,25 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
 
         const eventInfo = element.dataset.event;
 
-        // data-event="component(product_list)|event_name(data)"
+        // data-event="name(product_list)|some_event"
         const directives = parseDirectives(eventInfo);
-        const emits: Array<{ name: string; data: any }> = [];
-        // TODO: handle "component" modifier
+        const emits: Array<{ name: string; data: any; nameMatch: string | null }> = [];
         directives.forEach((directive) => {
+            let nameMatch = null;
+            directive.modifiers.forEach((modifier) => {
+                switch (modifier.name) {
+                    case 'name':
+                        nameMatch = modifier.value;
+                        break;
+                    default:
+                        throw new Error(`Unknown modifier ${modifier.name} in event "${eventInfo}".`);
+                }
+            });
+
             emits.push({
                 name: directive.action,
-                data: directive.named
+                data: directive.named,
+                nameMatch,
             });
         });
 

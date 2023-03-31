@@ -19,13 +19,13 @@ namespace Symfony\UX\LiveComponent;
 final class LiveResponder
 {
     /**
-     * Key is the event name, value is an array with keys: event, data, target
+     * Key is the event name, value is an array with keys: event, data, target.
      *
      * @var array<string, array<string, mixed>>
      */
     private array $eventsToEmit = [];
 
-    public function emit(string $eventName, array $data, string $componentName = null): void
+    public function emit(string $eventName, array $data = [], string $componentName = null): void
     {
         $this->eventsToEmit[] = [
             'event' => $eventName,
@@ -45,7 +45,7 @@ final class LiveResponder
         ];
     }
 
-    public function emitSelf(string $eventName, array $data): void
+    public function emitSelf(string $eventName, array $data = []): void
     {
         $this->eventsToEmit[] = [
             'event' => $eventName,

@@ -63,6 +63,15 @@ final class LiveAttributesCollection
         $this->attributes['data-live-props-value'] = $dehydratedProps;
     }
 
+    public function getProps(): array
+    {
+        if (!\array_key_exists('data-live-props-value', $this->attributes)) {
+            throw new \LogicException('You must call setProps() before calling getProps().');
+        }
+
+        return $this->attributes['data-live-props-value'];
+    }
+
     public function setUrl(string $url): void
     {
         $this->attributes['data-live-url-value'] = $url;
@@ -81,15 +90,6 @@ final class LiveAttributesCollection
     public function setEventsToEmit(array $events): void
     {
         $this->attributes['data-live-emit'] = $events;
-    }
-
-    public function getProps(): array
-    {
-        if (!\array_key_exists('data-live-props-value', $this->attributes)) {
-            throw new \LogicException('You must call addProps() before calling getProps().');
-        }
-
-        return $this->attributes['data-live-props-value'];
     }
 
     private function escapeAttribute(string $value): string

@@ -1994,6 +1994,10 @@ You can also trigger a specific "action" instead of a normal re-render:
 Communication Between Components: Emitting Events
 -------------------------------------------------
 
+.. versionadded:: 2.8
+
+    The ability to emit events was added in Live Components 2.8.
+
 Events allow you to communicate between any two components that live
 on your page.
 
@@ -2011,16 +2015,21 @@ There are three ways to emit an event:
         data-event="productAdded"
     >
 
-2. From your PHP component::
+2. From your PHP component via ``ComponentEmitsTrait``::
 
-    use Symfony\UX\LiveComponent\LiveResponder;
+    use Symfony\UX\LiveComponent\ComponentEmitsTrait;
 
-    #[LiveAction]
-    public function saveProduct(LiveResponder $responder)
+    class MyComponent
     {
-        // ...
+        use ComponentEmitsTrait
 
-        $responder->emit('productAdded');
+        #[LiveAction]
+        public function saveProduct()
+        {
+            // ...
+
+            $this->emit('productAdded');
+        }
     }
 
 3. :ref:`From JavaScript <working-in-javascript>`, using your component:
@@ -2055,11 +2064,13 @@ Passing Data to Listeners
 You can also pass extra (scalar) data to the listeners::
 
     #[LiveAction]
-    public function saveProduct(LiveResponder $responder)
+    public function saveProduct()
     {
         // ...
 
-        $responder->emit('productAdded');
+        $this->emit('productAdded', [
+            'product' => $product->getId(),
+        ]);
     }
 
 In your listeners, you can access this by adding a matching argument
@@ -2103,7 +2114,7 @@ If you want to emit an event to only the parent components, use the
 
 Or, in PHP::
 
-    $responder->emitUp('productAdded');
+    $this->emitUp('productAdded');
 
 Emitting only to Components with a Specific Name
 .................................................
@@ -2115,12 +2126,12 @@ use the ``name()`` modifier:
 
     <button
         data-action="live#emit"
-        data-event="component(product_list)|productAdded"
+        data-event="name(product_list)|productAdded"
     >
 
 Or, in PHP::
 
-    $responder->emit('productAdded', name: 'product_list');
+    $this->emit('productAdded', name: 'product_list');
 
 Emitting only to Yourself
 .........................
@@ -2136,7 +2147,7 @@ To emit an event to only yourself, use the ``emitSelf()`` method:
 
 Or, in PHP::
 
-    $responder->emitSelf('productAdded');
+    $this->emitSelf('productAdded');
 
 Nested Components
 -----------------
@@ -2178,6 +2189,11 @@ Suppose the user updates the ``listName`` model and the parent component
 re-renders. In this case, the child component will *not* re-render by design:
 each component lives in its own universe.
 
+.. versionadded:: 2.8
+
+    The ``updateFromParent`` option was added in Live Components 2.8. Previously,
+    a child would re-render when *any* props passed into it changed.
+
 However, if the user adds a *new* todo item then we *do* want the ``todo_footer``
 child component to re-render: using the new ``count`` value. To trigger this,
 in the ``todo_footer`` component, add the ``updateFromParent`` option::
@@ -2191,6 +2207,14 @@ in the ``todo_footer`` component, add the ``updateFromParent`` option::
 
 Now, when the parent component re-renders, if the value of the ``count`` prop
 changes, the child will make a second Ajax request to re-render itself.
+
+.. note::
+
+    To work, the name of the prop that's passed when rendering the ``todo_footer``
+    component must match the property name that has the ``updateFromParent`` - e.g.
+    ``{{ component('todo_footer', { count: todos|length }) }}``. If you pass in a
+    different name and set the ``count`` property via a ref:``mount()`` method, the
+    child component will not re-render correctly.
 
 Child components keep their modifiable LiveProp values
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
