@@ -2845,20 +2845,6 @@ class LiveControllerDefault extends Controller {
         detail.component = this.proxiedComponent;
         this.dispatch(name, { detail, prefix: 'live', cancelable, bubbles: canBubble });
     }
-    static findComponents(currentComponent, onlyParents, onlyMatchName) {
-        const components = [];
-        LiveControllerDefault.componentMap.forEach((componentName, component) => {
-            if (onlyParents &&
-                (currentComponent === component || !component.element.contains(currentComponent.element))) {
-                return;
-            }
-            if (onlyMatchName && componentName !== onlyMatchName) {
-                return;
-            }
-            components.push(component);
-        });
-        return components;
-    }
 }
 LiveControllerDefault.values = {
     name: String,

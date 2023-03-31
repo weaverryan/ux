@@ -413,27 +413,4 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
 
         this.dispatch(name, { detail, prefix: 'live', cancelable, bubbles: canBubble });
     }
-
-
-    /**
-     * Returns a filtered list of all the currently-registered components
-     */
-    static findComponents(currentComponent: Component, onlyParents: boolean, onlyMatchName: string|null): Component[] {
-        const components: Component[] = [];
-        LiveControllerDefault.componentMap.forEach((componentName: string, component: Component) => {
-            if (onlyParents &&
-                (currentComponent === component || !component.element.contains(currentComponent.element))
-            ) {
-                return;
-            }
-
-            if (onlyMatchName && componentName !== onlyMatchName) {
-                return;
-            }
-
-            components.push(component);
-        });
-
-        return components;
-    }
 }

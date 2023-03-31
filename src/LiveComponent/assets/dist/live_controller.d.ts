@@ -66,5 +66,4 @@ export default class LiveControllerDefault extends Controller<HTMLElement> imple
     handleConnectedControllerEvent(event: LiveEvent): void;
     handleDisconnectedChildControllerEvent(event: LiveEvent): void;
     private dispatchEvent;
-    static findComponents(currentComponent: Component, onlyParents: boolean, onlyMatchName: string | null): Component[];
 }
