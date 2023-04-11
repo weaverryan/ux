@@ -44,6 +44,8 @@ use Symfony\UX\TwigComponent\ComponentFactory;
 use Symfony\UX\TwigComponent\ComponentRenderer;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
+use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
+
 /**
  * @author Kevin Bond <kevinbond@gmail.com>
  *
@@ -159,6 +161,7 @@ final class LiveComponentExtension extends Extension implements PrependExtension
         $container->register('ux.live_component.metadata_factory', LiveComponentMetadataFactory::class)
             ->setArguments([
                 new Reference('ux.twig_component.component_factory'),
+                new Reference('property_info'),
             ])
         ;
 

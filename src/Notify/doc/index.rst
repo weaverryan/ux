@@ -1,5 +1,5 @@
 Symfony UX Notify
-===================
+=================
 
 Symfony UX Notify is a Symfony bundle integrating server-sent `native notifications`_
 in Symfony applications using `Mercure`_. It is part of `the Symfony UX initiative`_.
@@ -34,8 +34,7 @@ properly configured notifier transport:
 
 .. code-block:: yaml
 
-    // config/packages/notifier.yaml
-
+    # config/packages/notifier.yaml
     framework:
         notifier:
             chatter_transports:
@@ -140,7 +139,6 @@ Symfony UX Notify can be configured to specify the Mercure hub to use:
 .. code-block:: yaml
 
     # config/packages/notify.yaml
-
     notify:
         # Specifies the Mercure hub to use. Defaults to "mercure.hub.default"
         mercure_hub: mercure.hub.custom

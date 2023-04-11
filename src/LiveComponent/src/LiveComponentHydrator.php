@@ -15,6 +15,7 @@ use Symfony\Component\PropertyAccess\Exception\ExceptionInterface as PropertyAcc
 use Symfony\Component\PropertyAccess\Exception\NoSuchPropertyException;
 use Symfony\Component\PropertyAccess\Exception\UninitializedPropertyException;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
+use Symfony\Component\PropertyInfo\Type;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
@@ -86,24 +87,26 @@ final class LiveComponentHydrator
             $dehydratedProps->addPropValue($frontendName, $dehydratedValue);
 
             // 2) Fetch writable paths
-            foreach ($propMetadata->writablePaths() as $path) {
-                try {
-                    $pathValue = $this->propertyAccessor->getValue(
-                        $rawPropertyValue,
-                        $this->adjustPropertyPathForData($rawPropertyValue, $path)
-                    );
-                } catch (NoSuchPropertyException $e) {
-                    throw new \LogicException(sprintf('The writable path "%s" does not exist on the "%s" property of the "%s" component.', $path, $propertyName, \get_class($component)), 0, $e);
-                } catch (PropertyAccessExceptionInterface $e) {
-                    throw new \LogicException(sprintf('The writable path "%s" on the "%s" property of the "%s" component could not be read: %s', $path, $propertyName, \get_class($component), $e->getMessage()), 0, $e);
-                }
+            if (\is_object($rawPropertyValue) || \is_array($rawPropertyValue)) {
+                foreach ($propMetadata->writablePaths() as $path) {
+                    try {
+                        $pathValue = $this->propertyAccessor->getValue(
+                            $rawPropertyValue,
+                            $this->adjustPropertyPathForData($rawPropertyValue, $path)
+                        );
+                    } catch (NoSuchPropertyException $e) {
+                        throw new \LogicException(sprintf('The writable path "%s" does not exist on the "%s" property of the "%s" component.', $path, $propertyName, \get_class($component)), 0, $e);
+                    } catch (PropertyAccessExceptionInterface $e) {
+                        throw new \LogicException(sprintf('The writable path "%s" on the "%s" property of the "%s" component could not be read: %s', $path, $propertyName, \get_class($component), $e->getMessage()), 0, $e);
+                    }
 
-                // TODO: maybe we allow support the same types as LiveProps later
-                if (!$this->isValueValidDehydratedValue($pathValue)) {
-                    throw new \LogicException(sprintf('The writable path "%s" on the "%s" property of the "%s" component must be a scalar or array of scalars.', $path, $propertyName, \get_class($component)));
-                }
+                    // TODO: maybe we allow support the same types as LiveProps later
+                    if (!$this->isValueValidDehydratedValue($pathValue)) {
+                        throw new \LogicException(sprintf('The writable path "%s" on the "%s" property of the "%s" component must be a scalar or array of scalars.', $path, $propertyName, \get_class($component)));
+                    }
 
-                $dehydratedProps->addNestedProp($frontendName, $path, $pathValue);
+                    $dehydratedProps->addNestedProp($frontendName, $path, $pathValue);
+                }
             }
         }
 
@@ -143,7 +146,7 @@ final class LiveComponentHydrator
                 // even if this has writable paths, if no identity is sent,
                 // then there's nothing to write those onto
                 continue;
-            };
+            }
 
             /*
             | 1) Hydrate and set ORIGINAL data for this LiveProp.
@@ -157,7 +160,7 @@ final class LiveComponentHydrator
             /*
              | 2) Set UPDATED "writable paths" data for this LiveProp.
              */
-            $originalWritablePaths = $this->calculateWritablePaths($propMetadata, $propertyValue, $dehydratedOriginalProps, $frontendName, get_class($component));
+            $originalWritablePaths = $this->calculateWritablePaths($propMetadata, $propertyValue, $dehydratedOriginalProps, $frontendName, \get_class($component));
             $propertyValue = $this->setWritablePaths(
                 $originalWritablePaths,
                 $frontendName,
@@ -189,8 +192,8 @@ final class LiveComponentHydrator
             /*
              | 4) Set UPDATED "writable paths" data for this LiveProp.
              */
+            $updatedWritablePaths = $this->calculateWritablePaths($propMetadata, $propertyValue, $dehydratedUpdatedProps, $frontendName, \get_class($component));
             try {
-                $updatedWritablePaths = $this->calculateWritablePaths($propMetadata, $propertyValue, $dehydratedUpdatedProps, $frontendName, get_class($component));
                 $propertyValue = $this->setWritablePaths(
                     $updatedWritablePaths,
                     $frontendName,
@@ -289,7 +292,12 @@ final class LiveComponentHydrator
 
     private function setWritablePaths(array $writablePaths, string $frontendPropName, mixed $propertyValue, DehydratedProps $props): mixed
     {
-        if (0 === count($writablePaths)) {
+        if (0 === \count($writablePaths)) {
+            return $propertyValue;
+        }
+
+        // e.g. the value is null right now, so skip writable props
+        if (!\is_object($propertyValue) && !\is_array($propertyValue)) {
             return $propertyValue;
         }
 
@@ -328,11 +336,22 @@ final class LiveComponentHydrator
             return $this->normalizer->normalize($value, 'json', $propMetadata->serializationContext());
         }
 
-        if (is_bool($value) || is_null($value) || is_numeric($value) || is_string($value)) {
+        if (\is_bool($value) || null === $value || is_numeric($value) || \is_string($value)) {
             return $value;
         }
 
-        if (is_array($value)) {
+        if (\is_array($value)) {
+            if ($propMetadata->collectionValueType() && Type::BUILTIN_TYPE_OBJECT === $propMetadata->collectionValueType()->getBuiltinType()) {
+                $collectionClass = $propMetadata->collectionValueType()->getClassName();
+                foreach ($value as $key => $objectItem) {
+                    if (!$objectItem instanceof $collectionClass) {
+                        throw new \LogicException(sprintf('The LiveProp "%s" on component "%s" is an array. We determined the array is full of %s objects, but at least on key had a different value of %s', $propMetadata->getName(), \get_class($component), $collectionClass, get_debug_type($objectItem)));
+                    }
+
+                    $value[$key] = $this->dehydrateObjectValue($objectItem, $collectionClass, $propMetadata->getFormat(), \get_class($component), sprintf('%s.%s', $propMetadata->getName(), $key));
+                }
+            }
+
             if (!$this->isValueValidDehydratedValue($value)) {
                 $badKeys = $this->getNonScalarKeys($value, $propMetadata->getName());
                 $badKeysText = implode(', ', array_map(fn ($key) => sprintf('%s: %s', $key, $badKeys[$key]), array_keys($badKeys)));
@@ -343,34 +362,37 @@ final class LiveComponentHydrator
             return $value;
         }
 
-        if (!is_object($value)) {
+        if (!\is_object($value)) {
             throw new \LogicException(sprintf('Unable to dehydrate value of type "%s" for property "%s" on component "%s". Change this to a simpler type of an object that can be dehydrated. Or set the hydrateWith/dehydrateWith options in LiveProp or set "useSerializerForHydration: true" on the LiveProp to use the serializer.', get_debug_type($value), $propMetadata->getName(), \get_class($component)));
         }
 
         if (!$propMetadata->getType() || $propMetadata->isBuiltIn()) {
-            throw new \LogicException(sprintf('The "%s" property on component "%s" is missing its property-type. Add the "%s" type so the object can be hydrated later.', $propMetadata->getName(), \get_class($component), get_class($value)));
+            throw new \LogicException(sprintf('The "%s" property on component "%s" is missing its property-type. Add the "%s" type so the object can be hydrated later.', $propMetadata->getName(), \get_class($component), \get_class($value)));
         }
 
         // at this point, we have an object and can assume $propMetadata->getType()
         // is set correctly (needed for hydration later)
 
+        return $this->dehydrateObjectValue($value, $propMetadata->getType(), $propMetadata->getFormat(), \get_class($component), $propMetadata->getName());
+    }
+
+    private function dehydrateObjectValue(object $value, string $classType, ?string $dateFormat, string $componentClassForError, string $propertyPathForError): mixed
+    {
         if ($value instanceof \DateTimeInterface) {
-            return $value->format(\DateTimeInterface::RFC3339);
+            return $value->format($dateFormat ?: \DateTimeInterface::RFC3339);
         }
 
         if ($value instanceof \BackedEnum) {
-            return $value->name;
+            return $value->value;
         }
 
-        // TODO: add support for an array or Collection of entity objects
-
         foreach ($this->hydrationExtensions as $extension) {
-            if ($extension->supports($propMetadata->getType())) {
+            if ($extension->supports($classType)) {
                 return $extension->dehydrate($value);
             }
         }
 
-        throw new \LogicException(sprintf('Unable to dehydrate value of type "%s" for property "%s" on component "%s". Change this to a simpler value or add the hydrateWith/dehydrateWith options to LiveProp.', \get_class($value), $propMetadata->getName(), \get_class($component)));
+        throw new \LogicException(sprintf('Unable to dehydrate value of type "%s" for property "%s" on component "%s". Either (1) change this to a simpler value, (2) add the hydrateWith/dehydrateWith options to LiveProp or (3) set "useSerializerForHydration: true" on the LiveProp.', \get_class($value), $propertyPathForError, $componentClassForError));
     }
 
     private function hydrateValue(mixed $value, LivePropMetadata $propMetadata, object $component): mixed
@@ -385,6 +407,13 @@ final class LiveComponentHydrator
 
         if ($propMetadata->useSerializerForHydration()) {
             return $this->normalizer->denormalize($value, $propMetadata->getType(), 'json', $propMetadata->serializationContext());
+        }
+
+        if ($propMetadata->collectionValueType() && Type::BUILTIN_TYPE_OBJECT === $propMetadata->collectionValueType()->getBuiltinType()) {
+            $collectionClass = $propMetadata->collectionValueType()->getClassName();
+            foreach ($value as $key => $objectItem) {
+                $value[$key] = $this->hydrateObjectValue($objectItem, $collectionClass, true, \get_class($component), sprintf('%s.%s', $propMetadata->getName(), $key));
+            }
         }
 
         // no type? no hydration
@@ -405,22 +434,28 @@ final class LiveComponentHydrator
             return $value;
         }
 
-        // assume it's a class name
-        $className = $propMetadata->getType();
+        return $this->hydrateObjectValue($value, $propMetadata->getType(), $propMetadata->allowsNull(), \get_class($component), $propMetadata->getName());
+    }
 
+    private function hydrateObjectValue(mixed $value, string $className, bool $allowsNull, string $componentClassForError, string $propertyPathForError): ?object
+    {
         // enum
         if (is_a($className, \BackedEnum::class, true)) {
-            if ($propMetadata->allowsNull() && !\in_array($value, array_map(fn (\BackedEnum $e) => $e->value, $className::cases()))) {
+            if ($allowsNull && !\in_array($value, array_map(fn (\BackedEnum $e) => $e->value, $className::cases()))) {
                 return null;
             }
 
-            return $className::from($value);
+            return $className::tryFrom($value);
         }
 
         // date time
         if (is_a($className, \DateTimeInterface::class, true)) {
-            if ($className === \DateTimeInterface::class) {
+            if (\DateTimeInterface::class === $className) {
                 $className = \DateTimeImmutable::class;
+            }
+
+            if (!\is_string($value)) {
+                throw new BadRequestHttpException(sprintf('The model path "%s" was sent an invalid data type "%s" for a date.', $propertyPathForError, get_debug_type($value)));
             }
 
             return new $className($value);
@@ -432,16 +467,16 @@ final class LiveComponentHydrator
             }
         }
 
-        throw new HydrationException(sprintf('Unable to hydrate value of type "%s" for property "%s" on component "%s". Change this to a simpler value, add the hydrateWith/dehydrateWith options to LiveProp or set "useSerializerForHydration: true" on the LiveProp to use the serializer..', $className, $propMetadata->getName(), \get_class($component)));
+        throw new HydrationException(sprintf('Unable to hydrate value of type "%s" for property "%s" on component "%s". Change this to a simpler value, add the hydrateWith/dehydrateWith options to LiveProp or set "useSerializerForHydration: true" on the LiveProp to use the serializer..', $className, $propertyPathForError, $componentClassForError));
     }
 
     private function isValueValidDehydratedValue(mixed $value): bool
     {
-        if (is_bool($value) || is_null($value) || is_numeric($value) || is_string($value)) {
+        if (\is_bool($value) || null === $value || is_numeric($value) || \is_string($value)) {
             return true;
         }
 
-        if (!is_array($value)) {
+        if (!\is_array($value)) {
             return false;
         }
 
@@ -454,12 +489,11 @@ final class LiveComponentHydrator
         return true;
     }
 
-
     private function getNonScalarKeys(array $value, string $path = ''): array
     {
         $nonScalarKeys = [];
         foreach ($value as $k => $v) {
-            if (is_array($v)) {
+            if (\is_array($v)) {
                 $nonScalarKeys = array_merge($nonScalarKeys, $this->getNonScalarKeys($v, sprintf('%s.%s', $path, $k)));
                 continue;
             }

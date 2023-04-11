@@ -6,10 +6,8 @@ use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
-use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\UX\LiveComponent\Hydration\DoctrineEntityHydrationExtension;
 use Symfony\UX\LiveComponent\LiveComponentBundle;
-use Symfony\UX\LiveComponent\Normalizer\DoctrineObjectNormalizer;
 
 /**
  * @author Kevin Bond <kevinbond@gmail.com>

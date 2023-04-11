@@ -229,22 +229,27 @@ to the options above, you can also pass:
 
         use Symfony\Component\Security\Core\Security;
 
-        'security' => function(Security $security): bool {
-            return $security->isGranted('ROLE_FOO');
-        }
+        [
+            'security' => function(Security $security): bool {
+                return $security->isGranted('ROLE_FOO');
+            },
+        ];
 
 ``filter_query`` (default: ``null``)
     If you want to completely control the query made for the "search results",
     use this option. This is incompatible with ``searchable_fields``::
 
-        'filter_query' => function(QueryBuilder $qb, string $query, EntityRepository $repository) {
-            if (!$query) {
-                return;
-            }
+        [
+            'filter_query' => function(QueryBuilder $qb, string $query, EntityRepository $repository) {
+                if (!$query) {
+                    return;
+                }
 
-            $qb->andWhere('entity.name LIKE :filter OR entity.description LIKE :filter')
-                ->setParameter('filter', '%'.$query.'%');
-        }
+                $qb->andWhere('entity.name LIKE :filter OR entity.description LIKE :filter')
+                    ->setParameter('filter', '%'.$query.'%');
+            },
+        ];
+
 ``max_results`` (default: 10)
     Allow you to control the max number of results returned by the automatic autocomplete endpoint.
 
@@ -303,10 +308,11 @@ To use another route, first declare it:
 Then specify this new route on the attribute::
 
     // src/Form/FoodAutocompleteField.php
-
     #[AsEntityAutocompleteField(route: 'ux_entity_autocomplete_admin')]
     class FoodAutocompleteField
-    // ...
+    {
+        // ...
+    }
 
 Extending Tom Select
 --------------------
@@ -470,7 +476,7 @@ This library comes with a Stimulus controller that can activate
 Tom Select on any ``select`` or ``input`` element. This can be used
 outside of the Form component. For example:
 
-.. code-block:: twig
+.. code-block:: html+twig
 
     <select
         name="food"
@@ -481,7 +487,7 @@ That's it! If you want the options to be autocompleted via
 Ajax, pass a ``url`` value, which works well if you create
 a :ref:`custom autocompleter <custom-autocompleter>`:
 
-.. code-block:: twig
+.. code-block:: html+twig
 
     <select
         name="food"

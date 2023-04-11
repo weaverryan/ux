@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Symfony\UX\LiveComponent\Hydration;
 
 use Doctrine\ORM\EntityManagerInterface;
@@ -13,20 +22,19 @@ class DoctrineEntityHydrationExtension implements HydrationExtensionInterface
      */
     public function __construct(
         private iterable $managerRegistries,
-    )
-    {
+    ) {
     }
 
     public function supports(string $className): bool
     {
-        return $this->objectManagerFor($className) !== null;
+        return null !== $this->objectManagerFor($className);
     }
 
     public function hydrate(mixed $value, string $className): ?object
     {
         // an empty array means a non-persisted entity
         // we support instantiating with no constructor args
-        if (is_array($value) && 0 === count($value)) {
+        if (\is_array($value) && 0 === \count($value)) {
             return new $className();
         }
 
