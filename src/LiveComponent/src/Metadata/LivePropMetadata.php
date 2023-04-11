@@ -91,17 +91,11 @@ final class LivePropMetadata
         return $this->liveProp->useSerializerForHydration();
     }
 
-    /**
-     * @internal
-     */
     public function serializationContext(): array
     {
         return $this->liveProp->serializationContext();
     }
 
-    /**
-     * @internal
-     */
     public function collectionValueType(): ?Type
     {
         return $this->collectionValueType;

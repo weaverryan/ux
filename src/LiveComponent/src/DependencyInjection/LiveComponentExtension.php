@@ -44,8 +44,6 @@ use Symfony\UX\TwigComponent\ComponentFactory;
 use Symfony\UX\TwigComponent\ComponentRenderer;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
-use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
-
 /**
  * @author Kevin Bond <kevinbond@gmail.com>
  *
