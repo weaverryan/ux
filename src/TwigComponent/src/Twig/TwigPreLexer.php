@@ -20,7 +20,8 @@ class TwigPreLexer
     private int $length;
     private int $position = 0;
     private int $line;
-    /** @var string[] */
+    // each item has a "name" string key and a "hasDefaultBlock" bool key
+    /** @var array<string: name, bool: hasDefaultBlock> */
     private array $currentComponents = [];
 
     public function __construct(int $startingLine = 1)
@@ -39,6 +40,13 @@ class TwigPreLexer
                 $componentName = $this->consumeComponentName();
 
                 if ($componentName === 'block') {
+                    // if we're already inside the "default" block, let's close it
+                    if (!empty($this->currentComponents) && $this->currentComponents[count($this->currentComponents) - 1]['hasDefaultBlock']) {
+                        $output .= '{% endblock %}';
+
+                        $this->currentComponents[count($this->currentComponents) - 1]['hasDefaultBlock'] = false;
+                    }
+
                     $output .= $this->consumeBlock();
 
                     continue;
@@ -48,7 +56,7 @@ class TwigPreLexer
                 $isSelfClosing = $this->consume('/>');
                 if (!$isSelfClosing) {
                     $this->consume('>');
-                    $this->currentComponents[] = $componentName;
+                    $this->currentComponents[] = ['name' => $componentName, 'hasDefaultBlock' => false];
                 }
 
                 $output .= "{% component {$componentName}" . ($attributes ? " with { {$attributes} }" : '') . " %}";
@@ -65,9 +73,16 @@ class TwigPreLexer
                 $this->consume('>');
 
                 $lastComponent = array_pop($this->currentComponents);
+                $lastComponentName = $lastComponent['name'];
 
-                if ($closingComponentName !== $lastComponent) {
-                    throw new \RuntimeException("Expected closing tag '</t:{$lastComponent}>' but found '</t:{$closingComponentName}>' at line {$this->line}");
+                if ($closingComponentName !== $lastComponentName) {
+                    throw new \RuntimeException("Expected closing tag '</t:{$lastComponentName}>' but found '</t:{$closingComponentName}>' at line {$this->line}");
+                }
+
+                // we've reached the end of this component. If we're inside the
+                // default block, let's close it
+                if ($lastComponent['hasDefaultBlock']) {
+                    $output .= '{% endblock %}';
                 }
 
                 $output .= "{% endcomponent %}";
@@ -79,7 +94,22 @@ class TwigPreLexer
             if ($char === "\n") {
                 $this->line++;
             }
+
+            // handle adding a default block if needed
+            if (!empty($this->currentComponents)
+                && !$this->currentComponents[\count($this->currentComponents) - 1]['hasDefaultBlock']
+                && preg_match('/\S/', $char)
+            ) {
+                $this->currentComponents[\count($this->currentComponents) - 1]['hasDefaultBlock'] = true;
+                $output .= '{% block default %}';
+            }
+
             $output .= $char;
+        }
+
+        if (!empty($this->currentComponents)) {
+            $lastComponent = array_pop($this->currentComponents)['name'];
+            throw new \RuntimeException(sprintf('Expected closing tag "</t:%s>" not found at line %d.', $lastComponent, $this->line));
         }
 
         return $output;

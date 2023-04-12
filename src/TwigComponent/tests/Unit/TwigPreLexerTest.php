@@ -61,5 +61,15 @@ final class TwigPreLexerTest extends TestCase
             '<t:foo bar />',
             "{% component foo with { bar: true } %}{% endcomponent %}",
         ];
+
+        yield 'component_with_default_block_content' => [
+            '<t:foo>Foo</t:foo>',
+            "{% component foo %}{% block default %}Foo{% endblock %}{% endcomponent %}",
+        ];
+
+        yield 'component_with_default_block_that_holds_a_component_and_multi_blocks' => [
+            '<t:foo>Foo <t:bar /><t:block name="other_block">Other block</t:block></t:foo>',
+            "{% component foo %}{% block default %}Foo {% component bar %}{% endcomponent %}{% endblock %}{% block other_block %}Other block{% endblock %}{% endcomponent %}",
+        ];
     }
 }
