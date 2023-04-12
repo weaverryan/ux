@@ -20,6 +20,8 @@ use Symfony\UX\LiveComponent\Tests\Fixtures\Entity\Entity1;
 #[AsLiveComponent('todo_item')]
 final class TodoItemComponent
 {
+    use DefaultActionTrait;
+
     #[LiveProp(writable: true)]
     public string $text = '';
 
@@ -29,6 +31,4 @@ final class TodoItemComponent
     // here just to force a checksum to be needed, helps make tests more robust
     #[LiveProp(writable: false)]
     public string $readonlyValue = 'readonly';
-
-    use DefaultActionTrait;
 }

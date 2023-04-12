@@ -56,9 +56,10 @@ class InterceptChildComponentRenderSubscriber implements EventSubscriberInterfac
         if (isset($event->getInputProps()['data-live-id'])) {
             $deterministicId = $event->getInputProps()['data-live-id'];
         } else {
-            $key = $event->getInputProps()[LiveControllerAttributesCreator::KEY_PROP_NAME ?? null];
+            $key = $event->getInputProps()[LiveControllerAttributesCreator::KEY_PROP_NAME] ?? null;
             $deterministicId = $this->getDeterministicIdCalculator()->calculateDeterministicId(increment: false, key: $key);
         }
+
         if (!isset($childFingerprints[$deterministicId])) {
             // child fingerprint wasn't set, it is likely a new child, allow it to render fully
             return;

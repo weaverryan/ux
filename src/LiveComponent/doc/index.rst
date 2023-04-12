@@ -579,7 +579,7 @@ option::
 
 Now you can bind this to a field on the frontend that uses that same format:
 
-.. code-block:: twig
+.. code-block:: html+twig
 
     <input type="date" data-model="publishOn">
 
@@ -2552,13 +2552,16 @@ the list changes as the user types into a search box... or by clicking
 "delete" on an item. In this case, the wrong children may be removed
 or existing child components may not disappear when they should.
 
+.. versionadded:: 2.8
+
+    The ``key`` prop was added in Symfony UX Live Component 2.8.
+
 To fix this, add a ``key`` prop to each child component that's unique
 to that component:
 
 .. code-block:: twig
 
     {# templates/components/invoice.html.twig #}
-
     {% for lineItem in lineItems %}
         {{ component('invoice_line_item', {
             productId: lineItem.productId,
