@@ -1352,13 +1352,14 @@ This is possible thanks to the team work of two pieces:
    yet by the user, its validation errors are cleared so that they
    aren't displayed.
 
-Easier "New Form" Component
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Making the Post Object Optional for a "New Form" Component
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The previous component could be used to edit an existing post or create
-a new post. But, the way it's currently written, a ``post`` object *must*
-be passed to the ``component()`` function so the `$post` property is set.
-But you can make that optional by adding a ``mount()`` method::
+a new post. But either way, the component *requires* you to pass it
+a ``post`` property.
+
+Tou can make that optional by adding a ``mount()`` method::
 
     #[AsLiveComponent('post_form')]
     class PostFormComponent extends AbstractController
