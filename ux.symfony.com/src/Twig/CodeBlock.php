@@ -8,7 +8,7 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 #[AsTwigComponent()]
 class CodeBlock
 {
-    public string $filename;
+    public ?string $filename = null;
     public string $height = 'auto';
     public bool $showFilename = true;
     public ?string $language = null;

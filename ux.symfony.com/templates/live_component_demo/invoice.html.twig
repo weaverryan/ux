@@ -1,0 +1,55 @@
+{% extends 'liveDemoTabsBase.html.twig' %}
+
+{% set navItems = [
+    { id: 'demo_component_invoice', label: 'InvoiceCreator.php' },
+    { id: 'demo_invoice_template', label: 'InvoiceCreator.html.twig' },
+    { id: 'demo_component_invoice_item', label: 'InvoiceCreatorLineItem.php' },
+    { id: 'demo_invoice_item_template', label: 'InvoiceCreatorLineItem.html.twig' },
+] %}
+
+{% block demo_code_tabs %}
+    <div class="tab-pane show active" id="demo_component_invoice">
+        {% component CodeBlock with { language: 'php', height: '600px' } %}
+            {% block content %}
+                {{- source('@src/Twig/InvoiceCreator.php')|cleanup_php_file -}}
+            {% endblock %}
+        {% endcomponent %}
+    </div>
+    <div class="tab-pane" id="demo_invoice_template">
+        {% component CodeBlock with { language: 'twig', height: '600px' } %}
+            {% block content %}
+                {{- source('components/InvoiceCreator.html.twig') -}}
+            {% endblock %}
+        {% endcomponent %}
+    </div>
+    <div class="tab-pane" id="demo_component_invoice_item">
+        {% component CodeBlock with { language: 'php', height: '600px' } %}
+            {% block content %}
+                {{- source('@src/Twig/InvoiceCreatorLineItem.php')|cleanup_php_file -}}
+            {% endblock %}
+        {% endcomponent %}
+    </div>
+    <div class="tab-pane" id="demo_invoice_item_template">
+        {% component CodeBlock with { language: 'twig', height: '600px' } %}
+            {% block content %}
+                {{- source('components/InvoiceCreatorLineItem.html.twig') -}}
+            {% endblock %}
+        {% endcomponent %}
+    </div>
+{% endblock %}
+
+{% block demo_content %}
+    <div class="row">
+        <div class="col-8">
+            {{ component('InvoiceCreator', {
+                invoice: invoice
+            }) }}
+        </div>
+    </div>
+    <div class="mt-3">
+        <small>
+            Inspired by:
+            <a href="https://www.youtube.com/watch?v=udvFu31sFpk" rel="external noopener noreferrer">Livewire Invoice Editor Component: Parent-Child Example by Laravel Daily</a>
+        </small>
+    </div>
+{% endblock %}

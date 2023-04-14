@@ -1,7 +1,7 @@
 <div {{ attributes.defaults({
     class: this.classString,
 }) }}>
-    {% if showFilename %}
+    {% if filename %}
         <p class="py-2 ps-4 mb-0">{{ filename }}</p>
     {% endif %}
     <div class="terminal-body ps-4" style="height: {{ height }}; overflow: auto;">

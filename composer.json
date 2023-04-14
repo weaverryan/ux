@@ -4,5 +4,9 @@
     "require-dev": {
         "symfony/filesystem": "^5.2|^6.0",
         "php-cs-fixer/shim": "^3.13"
+    },
+    "require": {
+        "symfony/translation": "^6.2",
+        "twig/intl-extra": "^3.5"
     }
 }

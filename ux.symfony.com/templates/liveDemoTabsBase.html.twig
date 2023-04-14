@@ -4,15 +4,12 @@
 <div class="row" style="margin-top: 60px;">
     <div class="terminal-code">
         <ul class="nav nav-tabs">
-          <li class="nav-item" role="presentation">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#demo_component" type="button" role="tab" aria-controls="demo_component" aria-selected="true">src/Twig/MealPlanner.php</button>
-          </li>
-          <li class="nav-item" role="presentation">
-              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#demo_template" type="button" role="tab" aria-controls="demo_template">templates/components/MealPlanner.html.twig</button>
-          </li>
-          <li class="nav-item" role="presentation">
-              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#demo_form" type="button" role="tab" aria-controls="demo_form">src/Form/MealPlannerForm.php</button>
-          </li>
+            {# set this in the child template #}
+            {% for navItem in navItems %}
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link {{ loop.first ? 'active' }}" data-bs-toggle="tab" data-bs-target="#{{ navItem.id }}" type="button" role="tab" aria-controls="{{ navItem.id }}" aria-selected="{{ loop.first ? 'true' : 'false' }}">{{ navItem.label }}</button>
+                </li>
+            {% endfor %}
         </ul>
         <div class="tab-content" id="code-tabs">
             {% block demo_code_tabs %}{% endblock %}

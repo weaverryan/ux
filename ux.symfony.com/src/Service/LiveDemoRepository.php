@@ -80,6 +80,17 @@ What do you get with Live Components + UX Chart.js + UX Autocomplete?
 An auto-updating chart that you will ❤️.
 EOF
             ),
+            new LiveDemo(
+                'invoice',
+                name: 'Invoice Creator',
+                description: 'Create an invoice + line items that updates as you type.',
+                route: 'app_live_components_invoice',
+                longDescription: <<<EOF
+A parent component with children components for each line item.
+<br>
+Children emit events to communicate to the parent.
+EOF
+            ),
         ];
     }
 
