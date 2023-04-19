@@ -42,7 +42,6 @@ use Symfony\UX\LiveComponent\Util\LiveControllerAttributesCreator;
 use Symfony\UX\LiveComponent\Util\TwigAttributeHelperFactory;
 use Symfony\UX\TwigComponent\ComponentFactory;
 use Symfony\UX\TwigComponent\ComponentRenderer;
-
 use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
 /**

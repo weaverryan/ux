@@ -422,6 +422,7 @@ LiveProp for Entities & More Complex Data
 like ``DateTime`` objects, enums & Doctrine entity objects. When ``LiveProp``s
 are sent to the frontend, they are "dehydrated". When Ajax requests are sent
 to the frontend, the dehydrated data is then "hydrated" back into the original.
+
 Doctrine entity objects are a special case for ``LiveProp``::
 
     use App\Entity\Post;
