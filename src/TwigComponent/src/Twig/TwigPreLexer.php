@@ -53,8 +53,8 @@ class TwigPreLexer
             }
 
             $isTwigHtmlOpening = $this->consume('<twig:');
-            $isTraditionalBlockOpening = $this->consume('{% block');
-            if ($isTwigHtmlOpening || $isTraditionalBlockOpening) {
+            $isTraditionalBlockOpening = false;
+            if ($isTwigHtmlOpening || (0 !== count($this->currentComponents) && $isTraditionalBlockOpening = $this->consume('{% block'))) {
                 $componentName = $isTraditionalBlockOpening ? 'block' : $this->consumeComponentName();
 
                 if ('block' === $componentName) {
