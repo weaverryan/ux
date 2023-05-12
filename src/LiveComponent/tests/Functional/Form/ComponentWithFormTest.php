@@ -181,6 +181,9 @@ class ComponentWithFormTest extends KernelTestCase
             'checkbox_checked' => '1',
             'file' => '',
             'hidden' => '',
+            'complexType' => [
+                'sub_field' => '',
+            ]
         ], $dehydratedProps['form']);
 
         $getUrl = function (array $props, array $updatedProps = null) {
