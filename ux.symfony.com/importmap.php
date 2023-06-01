@@ -40,6 +40,11 @@ return [
     'bootstrap' => [
         'url' => 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/+esm',
     ],
+    'bootstrap/dist/css/bootstrap.min.css' => [
+        'url' => 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
+        'type' => 'css',
+        'preload' => true,
+    ],
     '@popperjs/core' => [
         'url' => 'https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.7/+esm',
     ],
