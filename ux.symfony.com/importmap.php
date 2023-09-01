@@ -18,22 +18,11 @@ return [
         'path' => 'app.js',
         'preload' => true,
     ],
-    'bootstrap/dist/css/bootstrap.min.css' => [
-        'downloaded_to' => 'vendor/bootstrap/dist/css/bootstrap.min.css',
-        'url' => 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
-        'type' => 'css',
-        'render_link_tag' => true,
-    ],
-    'app.css' => [
-        'path' => 'styles/app.css',
-        'render_link_tag' => true,
+    'app.scss' => [
+        'path' => 'styles/app.scss',
+        'preload' => true,
         'type' => 'css',
     ],
-//    'other.css' => [
-//        'path' => 'styles/other.css',
-//        'type' => 'css',
-//        'preload' => true,
-//    ],
     '@symfony/stimulus-bundle' => [
         'path' => '@symfony/stimulus-bundle/loader.js',
         'preload' => true,

@@ -1,3 +1,5 @@
+import '../styles/other.css';
+
 import { Controller } from '@hotwired/stimulus';
 import {
     trans,
@@ -21,6 +23,7 @@ function highlight({ code, language = 'javascript' }) {
     return hljs.highlight(code, { language }).value;
 }
 
+/* stimulusFetch: 'lazy' */
 export default class extends Controller {
     static targets = [
         'helloCode',
