@@ -16,16 +16,10 @@
 return [
     'app' => [
         'path' => 'app.js',
-        'preload' => true,
-    ],
-    'app.scss' => [
-        'path' => 'styles/app.scss',
-        'preload' => true,
-        'type' => 'css',
+        'entrypoint' => true,
     ],
     '@symfony/stimulus-bundle' => [
         'path' => '@symfony/stimulus-bundle/loader.js',
-        'preload' => true,
     ],
     '@symfony/ux-react' => [
         'path' => '@symfony/ux-react/loader.js',
