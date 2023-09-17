@@ -1,4 +1,5 @@
 import './styles/app.scss';
+import('my_custom_module');
 
 import { registerReactControllerComponents } from '@symfony/ux-react';
 import {registerVueControllerComponents} from "@symfony/ux-vue";

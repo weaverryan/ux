@@ -69,13 +69,13 @@ export default class extends Controller {
     }
 
     render() {
-        this.helloCodeTarget.innerHTML =     highlight({ code: `import { trans, HELLO } from '../translator';
+        this.helloCodeTarget.innerHTML =     highlight({ code: `import { trans, HELLO } from '../translator.js';
 
 trans(HELLO)` });
         this.helloOutputTarget.textContent = trans(HELLO);
 
         this.sayHelloCodeTarget.innerHTML = highlight({
-            code: `import { trans, SAY_HELLO } from '../translator';
+            code: `import { trans, SAY_HELLO } from '../translator.js';
 
 trans(SAY_HELLO, {
     name: ${this.#quoteValue(this.sayHelloNameInputTarget.value)}
@@ -86,7 +86,7 @@ trans(SAY_HELLO, {
         });
 
         this.invitationTitleCodeTarget.innerHTML = highlight({
-            code: `import { trans, INVITATION_TITLE } from '../translator';
+            code: `import { trans, INVITATION_TITLE } from '../translator.js';
 
 trans(INVITATION_TITLE, {
     organizer_gender: ${this.#quoteValue(this.invitationTitleOrganizationGenderInputTarget.value)},
@@ -99,7 +99,7 @@ trans(INVITATION_TITLE, {
         });
 
         this.numOfApplesCodeTarget.innerHTML = highlight({
-            code: `import { trans, NUM_OF_APPLES } from '../translator';
+            code: `import { trans, NUM_OF_APPLES } from '../translator.js';
 
 trans(NUM_OF_APPLES, {
     apples: ${this.numOfApplesCountInputTarget.value}
@@ -110,7 +110,7 @@ trans(NUM_OF_APPLES, {
         })
 
         this.finishPlaceCodeTarget.innerHTML = highlight({
-            code: `import { trans, FINISH_PLACE } from '../translator';
+            code: `import { trans, FINISH_PLACE } from '../translator.js';
 
 trans(FINISH_PLACE, {
     place: ${this.finishPlacePlaceInputTarget.value}
@@ -121,7 +121,7 @@ trans(FINISH_PLACE, {
         });
 
         this.publishedAtCodeTarget.innerHTML = highlight({
-            code: `import { trans, PUBLISHED_AT } from '../translator';
+            code: `import { trans, PUBLISHED_AT } from '../translator.js';
 
 trans(PUBLISHED_AT, {
     publication_date: new Date('${this.publishedAtDateInputTarget.value}')
@@ -132,7 +132,7 @@ trans(PUBLISHED_AT, {
         });
 
         this.progressAtCodeTarget.innerHTML = highlight({
-            code: `import { trans, PROGRESS } from '../translator';
+            code: `import { trans, PROGRESS } from '../translator.js';
 
 trans(PROGRESS, {
     progress: ${this.progressAtProgressInputTarget.value / 100},
@@ -143,7 +143,7 @@ trans(PROGRESS, {
         });
 
         this.valueOfObjectCodeTarget.innerHTML = highlight({
-            code: `import { trans, VALUE_OF_OBJECT } from '../translator';
+            code: `import { trans, VALUE_OF_OBJECT } from '../translator.js';
 
 trans(VALUE_OF_OBJECT, {
     value: ${this.valueOfObjectValueInputTarget.value}
