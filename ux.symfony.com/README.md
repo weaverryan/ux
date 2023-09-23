@@ -2,6 +2,16 @@
 
 Source code for [ux.symfony.com](https://ux.symfony.com).
 
+## AssetMapper CSS Testing
+
+- in `base.html.twig`, `{{ import('app') }}` indicates that `app` is the entrypoint.
+- Any JavaScript files that it (non-lazily) imports (or its imports import) are given
+   `preload=true`.
+- Any CSS files that it (non-lazily) imports (or its imports import) are rendered
+   as `<link rel="stylesheet" href="...">` tags in the HTML.
+- Thanks to code in `app.js`, after 2 seconds, a lazy JS file is imported, which
+   also triggers `red_background.css` to be imported.
+
 ## Contributing
 
 ### Local Development
