@@ -21,11 +21,6 @@ return [
     'my_custom_module' => [
         'path' => 'my_custom_module.js',
     ],
-//    'other.css' => [
-//        'path' => 'styles/other.css',
-//        'preload' => true,
-//        'type' => 'css',
-//    ],
     '@symfony/stimulus-bundle' => [
         'path' => '@symfony/stimulus-bundle/loader.js',
     ],
