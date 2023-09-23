@@ -1,5 +1,3 @@
-import '../styles/other.css';
-
 import { Controller } from '@hotwired/stimulus';
 import {
     trans,
